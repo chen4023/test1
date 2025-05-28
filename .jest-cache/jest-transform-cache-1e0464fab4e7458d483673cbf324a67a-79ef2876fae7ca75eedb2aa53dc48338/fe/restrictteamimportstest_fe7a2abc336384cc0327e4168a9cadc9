@@ -1,0 +1,676 @@
+7b7443317c4d32e14d7023ea74db09ca
+"use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+// 📁 eslint-rules/restrict-team-imports.test.ts
+const eslint_1 = require("eslint");
+const restric_team_imports_1 = __importDefault(require("./restric-team-imports"));
+const ruleTester = new eslint_1.RuleTester({
+    parser: require.resolve("@typescript-eslint/parser"),
+    parserOptions: {
+        ecmaVersion: 2020,
+        sourceType: "module",
+        ecmaFeatures: {
+            jsx: true,
+        },
+    },
+});
+describe("restrict-team-imports (TypeScript 규칙)", () => {
+    const defaultOptions = {
+        allowedGlobalFolders: ["core", "shared"],
+        teamFolderPrefix: "team-",
+        teamsBasePath: "src/teams",
+    };
+    ruleTester.run("restrict-team-imports", restric_team_imports_1.default, {
+        valid: [
+            // ✅ 외부 라이브러리 import
+            {
+                code: `import React from 'react';`,
+                filename: "/project/src/teams/team-order/components/OrderList.tsx",
+                options: [defaultOptions],
+            },
+            {
+                code: `import type { FC } from 'react';`,
+                filename: "/project/src/teams/team-auth/components/LoginForm.tsx",
+                options: [defaultOptions],
+            },
+            {
+                code: `import { z } from 'zod';`,
+                filename: "/project/src/teams/team-order/types/order.ts",
+                options: [defaultOptions],
+            },
+            // ✅ core 폴더 import
+            {
+                code: `import { Button } from '@/core/components/Button';`,
+                filename: "/project/src/teams/team-order/components/OrderList.tsx",
+                options: [defaultOptions],
+            },
+            {
+                code: `import type { ButtonProps } from '@/core/components/Button';`,
+                filename: "/project/src/teams/team-auth/components/AuthButton.tsx",
+                options: [defaultOptions],
+            },
+            // ✅ shared 폴더 import
+            {
+                code: `import { ApiClient } from '@/shared/api/client';`,
+                filename: "/project/src/teams/team-order/services/orderService.ts",
+                options: [defaultOptions],
+            },
+            {
+                code: `import type { User } from '@/shared/types/user';`,
+                filename: "/project/src/teams/team-profile/types/profile.ts",
+                options: [defaultOptions],
+            },
+            // ✅ 같은 팀 내부 import
+            {
+                code: `import { OrderType } from '@/teams/team-order/types/order';`,
+                filename: "/project/src/teams/team-order/components/OrderList.tsx",
+                options: [defaultOptions],
+            },
+            {
+                code: `import type { OrderFormData } from '@/teams/team-order/types/forms';`,
+                filename: "/project/src/teams/team-order/components/OrderForm.tsx",
+                options: [defaultOptions],
+            },
+            // ✅ 상대 경로 import
+            {
+                code: `import { useOrder } from '../hooks/useOrder';`,
+                filename: "/project/src/teams/team-order/components/OrderForm.tsx",
+                options: [defaultOptions],
+            },
+            {
+                code: `import type { OrderHookReturn } from './useOrder';`,
+                filename: "/project/src/teams/team-order/hooks/useOrderForm.ts",
+                options: [defaultOptions],
+            },
+            // ✅ Dynamic import - 허용되는 경우
+            {
+                code: `const Component = await import('@/core/components/Modal');`,
+                filename: "/project/src/teams/team-order/pages/OrderPage.tsx",
+                options: [defaultOptions],
+            },
+            {
+                code: `const { OrderUtils } = await import('@/teams/team-order/utils/orderUtils');`,
+                filename: "/project/src/teams/team-order/components/OrderList.tsx",
+                options: [defaultOptions],
+            },
+            // ✅ 팀 폴더 외부에서는 제한 없음
+            {
+                code: `import { ProfileComponent } from '@/teams/team-profile/components/Profile';`,
+                filename: "/project/src/core/components/Layout.tsx",
+                options: [defaultOptions],
+            },
+            // ✅ 커스텀 설정 테스트
+            {
+                code: `import { Helper } from '@/utils/helper';`,
+                filename: "/project/src/teams/team-order/components/OrderList.tsx",
+                options: [
+                    {
+                        ...defaultOptions,
+                        allowedGlobalFolders: ["core", "shared"],
+                    },
+                ],
+            },
+        ],
+        invalid: [
+            // ❌ 다른 팀으로의 import
+            {
+                code: `import { UserProfile } from '@/teams/team-profile/components/UserProfile';`,
+                filename: "/project/src/teams/team-order/components/OrderList.tsx",
+                options: [defaultOptions],
+                errors: [
+                    {
+                        messageId: "crossTeamImport",
+                        data: {
+                            currentTeam: "team-order",
+                            targetTeam: "team-profile",
+                        },
+                    },
+                ],
+            },
+            // ❌ 타입 import도 제한됨
+            {
+                code: `import type { AuthUser } from '@/teams/team-auth/types/user';`,
+                filename: "/project/src/teams/team-order/types/order.ts",
+                options: [defaultOptions],
+                errors: [
+                    {
+                        messageId: "crossTeamImport",
+                        data: {
+                            currentTeam: "team-order",
+                            targetTeam: "team-auth",
+                        },
+                    },
+                ],
+            },
+            // ❌ 여러 다른 팀 import
+            {
+                code: `
+          import { AuthService } from '@/teams/team-auth/services/auth';
+          import type { ProfileData } from '@/teams/team-profile/types/profile';
+          import { DashboardChart } from '@/teams/team-dashboard/components/Chart';
+        `,
+                filename: "/project/src/teams/team-order/components/OrderList.tsx",
+                options: [defaultOptions],
+                errors: [
+                    {
+                        messageId: "crossTeamImport",
+                        data: {
+                            currentTeam: "team-order",
+                            targetTeam: "team-auth",
+                        },
+                    },
+                    {
+                        messageId: "crossTeamImport",
+                        data: {
+                            currentTeam: "team-order",
+                            targetTeam: "team-profile",
+                        },
+                    },
+                    {
+                        messageId: "crossTeamImport",
+                        data: {
+                            currentTeam: "team-order",
+                            targetTeam: "team-dashboard",
+                        },
+                    },
+                ],
+            },
+            // ❌ Dynamic import로 다른 팀 접근
+            {
+                code: `const ProfileComponent = await import('@/teams/team-profile/components/Profile');`,
+                filename: "/project/src/teams/team-order/pages/OrderPage.tsx",
+                options: [defaultOptions],
+                errors: [
+                    {
+                        messageId: "crossTeamImport",
+                        data: {
+                            currentTeam: "team-order",
+                            targetTeam: "team-profile",
+                        },
+                    },
+                ],
+            },
+            // ❌ 허용되지 않은 폴더에서 import
+            {
+                code: `import { Utils } from '@/utils/helper';`,
+                filename: "/project/src/teams/team-order/components/OrderList.tsx",
+                options: [defaultOptions],
+                errors: [
+                    {
+                        messageId: "restrictedImport",
+                        data: {
+                            currentTeam: "team-order",
+                            importPath: "@/utils/helper",
+                        },
+                    },
+                ],
+            },
+            // ❌ 허용되지 않은 lib 폴더
+            {
+                code: `import type { LibConfig } from '@/lib/config';`,
+                filename: "/project/src/teams/team-auth/pages/LoginPage.tsx",
+                options: [defaultOptions],
+                errors: [
+                    {
+                        messageId: "restrictedImport",
+                        data: {
+                            currentTeam: "team-auth",
+                            importPath: "@/lib/config",
+                        },
+                    },
+                ],
+            },
+            // ❌ 커스텀 설정에서도 크로스 팀 import 금지
+            {
+                code: `import { AuthComponent } from '@/teams/team-auth/components/Auth';`,
+                filename: "/project/src/teams/team-order/components/OrderList.tsx",
+                options: [
+                    {
+                        ...defaultOptions,
+                        allowedGlobalFolders: ["core", "shared", "utils"],
+                    },
+                ],
+                errors: [
+                    {
+                        messageId: "crossTeamImport",
+                        data: {
+                            currentTeam: "team-order",
+                            targetTeam: "team-auth",
+                        },
+                    },
+                ],
+            },
+        ],
+    });
+    // 🧪 커스텀 설정 테스트
+    describe("커스텀 설정 테스트", () => {
+        const customOptions = {
+            allowedGlobalFolders: ["shared", "entities", "widgets"],
+            teamFolderPrefix: "feature-",
+            teamsBasePath: "src/features",
+        };
+        ruleTester.run("restrict-team-imports with custom config", restric_team_imports_1.default, {
+            valid: [
+                // ✅ 커스텀 allowedGlobalFolders 테스트
+                {
+                    code: `import { EntityModel } from '@/entities/user';`,
+                    filename: "/project/src/features/feature-order/components/OrderList.tsx",
+                    options: [customOptions],
+                },
+                {
+                    code: `import { WidgetComponent } from '@/widgets/header';`,
+                    filename: "/project/src/features/feature-auth/pages/LoginPage.tsx",
+                    options: [customOptions],
+                },
+                // ✅ 커스텀 teamFolderPrefix 테스트
+                {
+                    code: `import { FeatureComponent } from '@/teams/feature-auth/components/Auth';`,
+                    filename: "/project/src/features/feature-auth/pages/LoginPage.tsx",
+                    options: [customOptions],
+                },
+            ],
+            invalid: [
+                // ❌ 커스텀 설정에서도 크로스 팀 import 금지
+                {
+                    code: `import { AuthComponent } from '@/teams/feature-auth/components/Auth';`,
+                    filename: "/project/src/features/feature-order/components/OrderList.tsx",
+                    options: [customOptions],
+                    errors: [
+                        {
+                            messageId: "crossTeamImport",
+                            data: {
+                                currentTeam: "feature-order",
+                                targetTeam: "feature-auth",
+                            },
+                        },
+                    ],
+                },
+            ],
+        });
+    });
+    // 🧪 엣지 케이스 테스트
+    describe("엣지 케이스 테스트", () => {
+        ruleTester.run("restrict-team-imports edge cases", restric_team_imports_1.default, {
+            valid: [
+                // ✅ 깊은 중첩 폴더 구조
+                {
+                    code: `import { DeepComponent } from '@/teams/team-order/components/forms/inputs/TextInput';`,
+                    filename: "/project/src/teams/team-order/pages/order/detail/OrderDetail.tsx",
+                    options: [defaultOptions],
+                },
+                // ✅ 대소문자 혼합 (실제 팀명 감지)
+                {
+                    code: `import { Component } from '@/teams/Team-Order/components/Button';`,
+                    filename: "/project/src/teams/Team-Order/pages/OrderPage.tsx",
+                    options: [defaultOptions],
+                },
+                // ✅ 복잡한 import 구조
+                {
+                    code: `import { 
+            OrderService, 
+            type OrderConfig,
+            ORDER_CONSTANTS 
+          } from '@/teams/team-order/services/orderService';`,
+                    filename: "/project/src/teams/team-order/components/OrderList.tsx",
+                    options: [defaultOptions],
+                },
+                // ✅ 네임스페이스 import
+                {
+                    code: `import * as OrderUtils from '@/teams/team-order/utils/orderUtils';`,
+                    filename: "/project/src/teams/team-order/components/OrderList.tsx",
+                    options: [defaultOptions],
+                },
+                // ✅ 조건부 import (동적)
+                {
+                    code: `
+            if (condition) {
+              const { OrderModal } = await import('@/teams/team-order/components/OrderModal');
+            }
+          `,
+                    filename: "/project/src/teams/team-order/pages/OrderPage.tsx",
+                    options: [defaultOptions],
+                },
+                // ✅ Re-export (같은 팀 내)
+                {
+                    code: `export { OrderButton } from '@/teams/team-order/components/OrderButton';`,
+                    filename: "/project/src/teams/team-order/index.ts",
+                    options: [defaultOptions],
+                },
+                // ✅ 타입 전용 import
+                {
+                    code: `import type { OrderStatus, OrderPriority } from '@/teams/team-order/types/order';`,
+                    filename: "/project/src/teams/team-order/hooks/useOrder.ts",
+                    options: [defaultOptions],
+                },
+            ],
+            invalid: [
+                // ❌ 깊은 중첩에서도 크로스 팀 감지
+                {
+                    code: `import { ProfileForm } from '@/teams/team-profile/components/forms/ProfileForm';`,
+                    filename: "/project/src/teams/team-order/pages/order/detail/OrderDetail.tsx",
+                    options: [defaultOptions],
+                    errors: [
+                        {
+                            messageId: "crossTeamImport",
+                            data: {
+                                currentTeam: "team-order",
+                                targetTeam: "team-profile",
+                            },
+                        },
+                    ],
+                },
+                // ❌ 복잡한 import에서도 감지
+                {
+                    code: `import { 
+            AuthService,
+            type AuthConfig 
+          } from '@/teams/team-auth/services/authService';`,
+                    filename: "/project/src/teams/team-order/components/OrderList.tsx",
+                    options: [defaultOptions],
+                    errors: [
+                        {
+                            messageId: "crossTeamImport",
+                            data: {
+                                currentTeam: "team-order",
+                                targetTeam: "team-auth",
+                            },
+                        },
+                    ],
+                },
+                // ❌ 네임스페이스 import도 제한
+                {
+                    code: `import * as ProfileUtils from '@/teams/team-profile/utils/profileUtils';`,
+                    filename: "/project/src/teams/team-order/components/OrderList.tsx",
+                    options: [defaultOptions],
+                    errors: [
+                        {
+                            messageId: "crossTeamImport",
+                            data: {
+                                currentTeam: "team-order",
+                                targetTeam: "team-profile",
+                            },
+                        },
+                    ],
+                },
+                // ❌ Re-export도 제한
+                {
+                    code: `export { ProfileCard } from '@/teams/team-profile/components/ProfileCard';`,
+                    filename: "/project/src/teams/team-order/index.ts",
+                    options: [defaultOptions],
+                    errors: [
+                        {
+                            messageId: "crossTeamImport",
+                            data: {
+                                currentTeam: "team-order",
+                                targetTeam: "team-profile",
+                            },
+                        },
+                    ],
+                },
+                // ❌ 조건부 동적 import도 제한
+                {
+                    code: `
+            if (showProfile) {
+              const { ProfileModal } = await import('@/teams/team-profile/components/ProfileModal');
+            }
+          `,
+                    filename: "/project/src/teams/team-order/pages/OrderPage.tsx",
+                    options: [defaultOptions],
+                    errors: [
+                        {
+                            messageId: "crossTeamImport",
+                            data: {
+                                currentTeam: "team-order",
+                                targetTeam: "team-profile",
+                            },
+                        },
+                    ],
+                },
+            ],
+        });
+    });
+    // 🧪 실제 시나리오 테스트
+    describe("실제 사용 시나리오", () => {
+        ruleTester.run("realistic scenarios", restric_team_imports_1.default, {
+            valid: [
+                // ✅ 실제 Next.js 컴포넌트 패턴
+                {
+                    code: `
+            'use client';
+            
+            import React, { useState, useCallback } from 'react';
+            import type { FC, MouseEvent } from 'react';
+            import { Button } from '@/core/components/ui/Button';
+            import { Card } from '@/core/components/ui/Card';
+            import { useToast } from '@/core/hooks/useToast';
+            import { ApiClient } from '@/shared/api/client';
+            import type { ApiResponse } from '@/shared/types/api';
+            import { OrderService } from '@/teams/team-order/services/orderService';
+            import type { Order, OrderStatus } from '@/teams/team-order/types/order';
+            import { useOrder } from '../hooks/useOrder';
+            
+            interface OrderListProps {
+              initialOrders: Order[];
+              onOrderUpdate?: (order: Order) => void;
+            }
+            
+            export const OrderList: FC<OrderListProps> = ({ initialOrders, onOrderUpdate }) => {
+              const [orders, setOrders] = useState<Order[]>(initialOrders);
+              const { updateOrderStatus } = useOrder();
+              const { showToast } = useToast();
+              
+              const handleStatusChange = useCallback(async (orderId: string, status: OrderStatus) => {
+                try {
+                  const updatedOrder = await OrderService.updateStatus(orderId, status);
+                  setOrders(prev => prev.map(order => 
+                    order.id === orderId ? updatedOrder : order
+                  ));
+                  onOrderUpdate?.(updatedOrder);
+                  showToast('주문 상태가 업데이트되었습니다.');
+                } catch (error) {
+                  showToast('업데이트에 실패했습니다.', 'error');
+                }
+              }, [onOrderUpdate, showToast]);
+              
+              return (
+                <div className="space-y-4">
+                  {orders.map(order => (
+                    <Card key={order.id}>
+                      {/* 주문 카드 내용 */}
+                    </Card>
+                  ))}
+                </div>
+              );
+            };
+          `,
+                    filename: "/project/src/teams/team-order/components/OrderList.tsx",
+                    options: [defaultOptions],
+                },
+                // ✅ 서비스 레이어 패턴
+                {
+                    code: `
+            import { ApiClient } from '@/shared/api/client';
+            import type { ApiResponse, PaginationParams } from '@/shared/types/api';
+            import { handleApiError } from '@/shared/utils/errorHandler';
+            import type { Order, CreateOrderData, UpdateOrderData } from '@/teams/team-order/types/order';
+            
+            export class OrderService {
+              private static readonly BASE_PATH = '/api/orders';
+              
+              static async getOrders(params?: PaginationParams): Promise<ApiResponse<Order[]>> {
+                try {
+                  return await ApiClient.get(this.BASE_PATH, { params });
+                } catch (error) {
+                  throw handleApiError(error);
+                }
+              }
+              
+              static async createOrder(data: CreateOrderData): Promise<ApiResponse<Order>> {
+                try {
+                  return await ApiClient.post(this.BASE_PATH, data);
+                } catch (error) {
+                  throw handleApiError(error);
+                }
+              }
+            }
+          `,
+                    filename: "/project/src/teams/team-order/services/orderService.ts",
+                    options: [defaultOptions],
+                },
+                // ✅ 커스텀 훅 패턴
+                {
+                    code: `
+            import { useState, useEffect, useCallback } from 'react';
+            import type { UseQueryResult } from '@tanstack/react-query';
+            import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+            import { useToast } from '@/core/hooks/useToast';
+            import { OrderService } from '@/teams/team-order/services/orderService';
+            import type { Order, CreateOrderData } from '@/teams/team-order/types/order';
+            
+            interface UseOrderReturn {
+              orders: Order[];
+              isLoading: boolean;
+              error: Error | null;
+              createOrder: (data: CreateOrderData) => Promise<void>;
+              refetch: () => void;
+            }
+            
+            export const useOrder = (): UseOrderReturn => {
+              const queryClient = useQueryClient();
+              const { showToast } = useToast();
+              
+              const {
+                data: orders = [],
+                isLoading,
+                error,
+                refetch
+              } = useQuery({
+                queryKey: ['orders'],
+                queryFn: OrderService.getOrders
+              });
+              
+              const createMutation = useMutation({
+                mutationFn: OrderService.createOrder,
+                onSuccess: () => {
+                  queryClient.invalidateQueries({ queryKey: ['orders'] });
+                  showToast('주문이 성공적으로 생성되었습니다.');
+                },
+                onError: () => {
+                  showToast('주문 생성에 실패했습니다.', 'error');
+                }
+              });
+              
+              const createOrder = useCallback(async (data: CreateOrderData) => {
+                await createMutation.mutateAsync(data);
+              }, [createMutation]);
+              
+              return {
+                orders,
+                isLoading,
+                error,
+                createOrder,
+                refetch
+              };
+            };
+          `,
+                    filename: "/project/src/teams/team-order/hooks/useOrder.ts",
+                    options: [defaultOptions],
+                },
+            ],
+            invalid: [
+                // ❌ 실제 시나리오에서 크로스 팀 import 감지
+                {
+                    code: `
+            import React from 'react';
+            import { Button } from '@/core/components/Button';
+            import { ApiClient } from '@/shared/api/client';
+            import { OrderService } from '@/teams/team-order/services/orderService';
+            import { ProfileService } from '@/teams/team-profile/services/profileService'; // ❌ 다른 팀
+            
+            export const OrderList = () => {
+              // 컴포넌트 로직
+            };
+          `,
+                    filename: "/project/src/teams/team-order/components/OrderList.tsx",
+                    options: [defaultOptions],
+                    errors: [
+                        {
+                            messageId: "crossTeamImport",
+                            data: {
+                                currentTeam: "team-order",
+                                targetTeam: "team-profile",
+                            },
+                        },
+                    ],
+                },
+                // ❌ 서비스에서 다른 팀 타입 import
+                {
+                    code: `
+            import { ApiClient } from '@/shared/api/client';
+            import type { Order } from '@/teams/team-order/types/order';
+            import type { User } from '@/teams/team-auth/types/user'; // ❌ 다른 팀 타입
+            
+            export class OrderService {
+              static async assignOrder(orderId: string, user: User): Promise<Order> {
+                return ApiClient.post('/orders/assign', { orderId, userId: user.id });
+              }
+            }
+          `,
+                    filename: "/project/src/teams/team-order/services/orderService.ts",
+                    options: [defaultOptions],
+                    errors: [
+                        {
+                            messageId: "crossTeamImport",
+                            data: {
+                                currentTeam: "team-order",
+                                targetTeam: "team-auth",
+                            },
+                        },
+                    ],
+                },
+            ],
+        });
+    });
+    // 🧪 성능 테스트 (대량 import)
+    describe("성능 테스트", () => {
+        const generateLargeImportCode = (teamName, count) => {
+            const imports = Array.from({ length: count }, (_, i) => `import { Component${i} } from '@/teams/${teamName}/components/Component${i}';`).join("\n");
+            return imports;
+        };
+        ruleTester.run("performance test with many imports", restric_team_imports_1.default, {
+            valid: [
+                // ✅ 같은 팀에서 많은 import
+                {
+                    code: generateLargeImportCode("team-order", 50),
+                    filename: "/project/src/teams/team-order/pages/OrderPage.tsx",
+                    options: [defaultOptions],
+                },
+            ],
+            invalid: [
+                // ❌ 다른 팀에서 많은 import
+                {
+                    code: generateLargeImportCode("team-profile", 10),
+                    filename: "/project/src/teams/team-order/pages/OrderPage.tsx",
+                    options: [defaultOptions],
+                    errors: Array.from({ length: 10 }, () => ({
+                        messageId: "crossTeamImport",
+                    })),
+                },
+            ],
+        });
+    });
+});
+// 📊 테스트 결과 요약
+console.log("🧪 TypeScript ESLint 규칙 테스트 완료!");
+console.log("📊 테스트 커버리지:");
+console.log("  ✅ 기본 import 패턴 테스트");
+console.log("  ✅ TypeScript 타입 import 테스트");
+console.log("  ✅ 커스텀 설정 테스트");
+console.log("  ✅ 엣지 케이스 테스트");
+console.log("  ✅ 실제 사용 시나리오 테스트");
+console.log("  ✅ 성능 테스트");
+console.log("🎉 모든 테스트 완료!");
+//# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJmaWxlIjoiL1VzZXJzL2h5ZW9uY2hhZWV1bi9EZXNrdG9wL2V4LXRlc3QvdGVzdDEvZXNsaW50LXJ1bGVzL3Jlc3RyaWN0LXRlYW0taW1wb3J0cy50ZXN0LnRzIiwibWFwcGluZ3MiOiI7Ozs7O0FBQUEsZ0RBQWdEO0FBQ2hELG1DQUFvQztBQUNwQyxrRkFBMEM7QUFHMUMsTUFBTSxVQUFVLEdBQUcsSUFBSSxtQkFBVSxDQUFDO0lBQ2hDLE1BQU0sRUFBRSxPQUFPLENBQUMsT0FBTyxDQUFDLDJCQUEyQixDQUFDO0lBQ3BELGFBQWEsRUFBRTtRQUNiLFdBQVcsRUFBRSxJQUFJO1FBQ2pCLFVBQVUsRUFBRSxRQUFRO1FBQ3BCLFlBQVksRUFBRTtZQUNaLEdBQUcsRUFBRSxJQUFJO1NBQ1Y7S0FDRjtDQUNGLENBQUMsQ0FBQztBQUVILFFBQVEsQ0FBQyx1Q0FBdUMsRUFBRSxHQUFHLEVBQUU7SUFDckQsTUFBTSxjQUFjLEdBQTBCO1FBQzVDLG9CQUFvQixFQUFFLENBQUMsTUFBTSxFQUFFLFFBQVEsQ0FBQztRQUN4QyxnQkFBZ0IsRUFBRSxPQUFPO1FBQ3pCLGFBQWEsRUFBRSxXQUFXO0tBQzNCLENBQUM7SUFFRixVQUFVLENBQUMsR0FBRyxDQUFDLHVCQUF1QixFQUFFLDhCQUFJLEVBQUU7UUFDNUMsS0FBSyxFQUFFO1lBQ0wsb0JBQW9CO1lBQ3BCO2dCQUNFLElBQUksRUFBRSw0QkFBNEI7Z0JBQ2xDLFFBQVEsRUFBRSx3REFBd0Q7Z0JBQ2xFLE9BQU8sRUFBRSxDQUFDLGNBQWMsQ0FBQzthQUMxQjtZQUNEO2dCQUNFLElBQUksRUFBRSxrQ0FBa0M7Z0JBQ3hDLFFBQVEsRUFBRSx1REFBdUQ7Z0JBQ2pFLE9BQU8sRUFBRSxDQUFDLGNBQWMsQ0FBQzthQUMxQjtZQUNEO2dCQUNFLElBQUksRUFBRSwwQkFBMEI7Z0JBQ2hDLFFBQVEsRUFBRSw4Q0FBOEM7Z0JBQ3hELE9BQU8sRUFBRSxDQUFDLGNBQWMsQ0FBQzthQUMxQjtZQUVELG1CQUFtQjtZQUNuQjtnQkFDRSxJQUFJLEVBQUUsb0RBQW9EO2dC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OEIsQ0FBQyxDQUFDO0FBQzVDLE9BQU8sQ0FBQyxHQUFHLENBQUMsZ0JBQWdCLENBQUMsQ0FBQztBQUM5QixPQUFPLENBQUMsR0FBRyxDQUFDLGdCQUFnQixDQUFDLENBQUM7QUFDOUIsT0FBTyxDQUFDLEdBQUcsQ0FBQyxvQkFBb0IsQ0FBQyxDQUFDO0FBQ2xDLE9BQU8sQ0FBQyxHQUFHLENBQUMsWUFBWSxDQUFDLENBQUM7QUFDMUIsT0FBTyxDQUFDLEdBQUcsQ0FBQyxlQUFlLENBQUMsQ0FBQyIsIm5hbWVzIjpbXSwic291cmNlcyI6WyIvVXNlcnMvaHllb25jaGFlZXVuL0Rlc2t0b3AvZXgtdGVzdC90ZXN0MS9lc2xpbnQtcnVsZXMvcmVzdHJpY3QtdGVhbS1pbXBvcnRzLnRlc3QudHMiXSwic291cmNlc0NvbnRlbnQiOlsiLy8g8J+TgSBlc2xpbnQtcnVsZXMvcmVzdHJpY3QtdGVhbS1pbXBvcnRzLnRlc3QudHNcbmltcG9ydCB7IFJ1bGVUZXN0ZXIgfSBmcm9tIFwiZXNsaW50XCI7XG5pbXBvcnQgcnVsZSBmcm9tIFwiLi9yZXN0cmljLXRlYW0taW1wb3J0c1wiO1xuaW1wb3J0IHR5cGUgeyBUZWFtSW1wb3J0UnVsZU9wdGlvbnMgfSBmcm9tIFwiLi90eXBlc1wiO1xuXG5jb25zdCBydWxlVGVzdGVyID0gbmV3IFJ1bGVUZXN0ZXIoe1xuICBwYXJzZXI6IHJlcXVpcmUucmVzb2x2ZShcIkB0eXBlc2NyaXB0LWVzbGludC9wYXJzZXJcIiksXG4gIHBhcnNlck9wdGlvbnM6IHtcbiAgICBlY21hVmVyc2lvbjogMjAyMCxcbiAgICBzb3VyY2VUeXBlOiBcIm1vZHVsZVwiLFxuICAgIGVjbWFGZWF0dXJlczoge1xuICAgICAganN4OiB0cnVlLFxuICAgIH0sXG4gIH0sXG59KTtcblxuZGVzY3JpYmUoXCJyZXN0cmljdC10ZWFtLWltcG9ydHMgKFR5cGVTY3JpcHQg6rec7LmZKVwiLCAoKSA9PiB7XG4gIGNvbnN0IGRlZmF1bHRPcHRpb25zOiBUZWFtSW1wb3J0UnVsZU9wdGlvbnMgPSB7XG4gICAgYWxsb3dlZEdsb2JhbEZvbGRlcnM6IFtcImNvcmVcIiwgXCJzaGFyZWRcIl0sXG4gICAgdGVhbUZvbGRlclByZWZpeDogXCJ0ZWFtLVwiLFxuICAgIHRlYW1zQmFzZVBhdGg6IFwic3JjL3RlYW1zXCIsXG4gIH07XG5cbiAgcnVsZVRlc3Rlci5ydW4oXCJyZXN0cmljdC10ZWFtLWltcG9ydHNcIiwgcnVsZSwge1xuICAgIHZhbGlkOiBbXG4gICAgICAvLyDinIUg7Jm467aAIOudvOydtOu4jOufrOumrCBpbXBvcnRcbiAgICAgIHtcbiAgICAgICAgY29kZTogYGltcG9ydCBSZWFjdCBmcm9tICdyZWFjdCc7YCxcbiAgICAgICAgZmlsZW5hbWU6IFwiL3Byb2plY3Qvc3JjL3RlYW1zL3RlYW0tb3JkZXIvY29tcG9uZW50cy9PcmRlckxpc3QudHN4XCIsXG4gICAgICAgIG9wdGlvbnM6IFtkZWZhdWx0T3B0aW9uc10sXG4gICAgICB9LFxuICAgICAge1xuICAgICAgICBjb2RlOiBgaW1wb3J0IHR5cGUgeyBGQyB9IGZyb20gJ3JlYWN0JztgLFxuICAgICAgICBmaWxlbmFtZTogXCIvcHJvamVjdC9zcmMvdGVhbXMvdGVhbS1hdXRoL2NvbXBvbmVudHMvTG9naW5Gb3JtLnRzeFwiLFxuICAgICAgICBvcHRpb25zOiBbZGVmYXVsdE9wdGlvbnNdLFxuICAgICAgfSxcbiAgICAgIHtcbiAgICAgICAgY29kZTogYGltcG9ydCB7IHogfSBmcm9tICd6b2QnO2AsXG4gICAgICAgIGZpbGVuYW1lOiBcIi9wcm9qZWN0L3NyYy90ZWFtcy90ZWFtLW9yZGVyL3R5cGVzL29yZGVyLnRzXCIsXG4gICAgICAgIG9wdGlvbnM6IFtkZWZhdWx0T3B0aW9uc10sXG4gICAgICB9LFxuXG4gICAgICAvLyDinIUgY29yZSDtj7TrjZQgaW1wb3J0XG4gICAgICB7XG4gICAgICAgIGNvZGU6IGBpbXBvcnQgeyBCdXR0b24gfSBmcm9tICdAL2NvcmUvY29tcG9uZW50cy9CdXR0b24nO2AsXG4gICAgICAgIGZpbGVuYW1lOiBcIi9wcm9qZWN0L3NyYy90ZWFtcy90ZWFtLW9yZGVyL2NvbXBvbmVudHMvT3JkZXJMaXN0LnRzeFwiLFxuICAgICAgICBvcHRpb25zOiBbZGVmYXVsdE9wdGlvbnNdLFxuICAgICAgfSxcbiAgICAgIHtcbiAgICAgICAgY29kZTogYGltcG9ydCB0eXBlIHsgQnV0dG9uUHJvcHMgfSBmcm9tICdAL2NvcmUvY29tcG9uZW50cy9CdXR0b24nO2AsXG4gICAgICAgIGZpbGVuYW1lOiBcIi9wcm9qZWN0L3NyYy90ZWFtcy90ZWFtLWF1dGgvY29tcG9uZW50cy9BdXRoQnV0dG9uLnRzeFwiLFxuICAgICAgICBvcHRpb25zOiBbZGVmYXVsdE9wdGlvbnNdLFxuICAgICAgfSxcblxuICAgICAgLy8g4pyFIHNoYXJlZCDtj7TrjZQgaW1wb3J0XG4gICAgICB7XG4gICAgICAgIGNvZGU6IGBpbXBvcnQgeyBBcGlDbGllbnQgfSBmcm9tICdAL3NoYXJlZC9hcGkvY2xpZW50JztgLFxuICAgICAgICBmaWxlbmFtZTogXCIvcHJvamVjdC9zcmMvdGVhbXMvdGVhbS1vcmRlci9zZXJ2aWNlcy9vcmRlclNlcnZpY2UudHNcIixcbiAgICAgICAgb3B0aW9uczogW2RlZmF1bHRPcHRpb25zXSxcbiAgICAgIH0sXG4gICAgICB7XG4gICAgICAgIGNvZGU6IGBpbXBvcnQgdHlwZSB7IFVzZXIgfSBmcm9tICdAL3NoYXJlZC90eXBlcy91c2VyJztgLFxuICAgICAgICBmaWxlbmFtZTogXCIvcHJvamVjdC9zcmMvdGVhbXMvdGVhbS1wcm9maWxlL3R5cGVzL3Byb2ZpbGUudHNcIixcbiAgICAgICAgb3B0aW9uczogW2RlZmF1bHRPcHRpb25zXSxcbiAgICAgIH0sXG5cbiAgICAgIC8vIOKchSDqsJnsnYAg7YyAIOuCtOu2gCBpbXBvcnRcbiAgICAgIHtcbiAgICAgICAgY29kZTogYGltcG9ydCB7IE9yZGVyVHlwZSB9IGZyb20gJ0AvdGVhbXMvdGVhbS1vcmRlci90eXBlcy9vcmRlcic7YCxcbiAgICAgICAgZmlsZW5hbWU6IFwiL3Byb2plY3Qvc3JjL3RlYW1zL3RlYW0tb3JkZXIvY29tcG9uZW50cy9PcmRlckxpc3QudHN4XCIsXG4gICAgICAgIG9wdGlvbnM6IFtkZWZhdWx0T3B0aW9uc10sXG4gICAgICB9LFxuICAgICAge1xuICAgICAgICBjb2RlOiBgaW1wb3J0IHR5cGUgeyBPcmRlckZvcm1EYXRhIH0gZnJvbSAnQC90ZWFtcy90ZWFtLW9yZGVyL3R5cGVzL2Zvcm1zJztgLFxuICAgICAgICBmaWxlbmFtZTogXCIvcHJvamVjdC9zcmMvdGVhbXMvdGVhbS1vcmRlci9jb21wb25lbnRzL09yZGVyRm9ybS50c3hcIixcbiAgICAgICAgb3B0aW9uczogW2RlZmF1bHRPcHRpb25zXSxcbiAgICAgIH0sXG5cbiAgICAgIC8vIOKchSDsg4HrjIAg6rK966GcIGltcG9ydFxuICAgICAge1xuICAgICAgICBjb2RlOiBgaW1wb3J0IHsgdXNlT3JkZXIgfSBmcm9tICcuLi9ob29rcy91c2VPcmRlcic7YCxcbiAgICAgICAgZmlsZW5hbWU6IFwiL3Byb2plY3Qvc3JjL3RlYW1zL3RlYW0tb3JkZXIvY29tcG9uZW50cy9PcmRlckZvcm0udHN4XCIsXG4gICAgICAgIG9wdGlvbnM6IFtkZWZhdWx0T3B0aW9uc10sXG4gICAgICB9LFxuICAgICAge1xuICAgICAgICBjb2RlOiBgaW1wb3J0IHR5cGUgeyBPcmRlckhvb2tSZXR1cm4gfSBmcm9tICcuL3VzZU9yZGVyJztgLFxuICAgICAgICBmaWxlbmFtZTogXCIvcHJvamVjdC9zcmMvdGVhbXMvdGVhbS1vcmRlci9ob29rcy91c2VPcmRlckZvcm0udHNcIixcbiAgICAgICAgb3B0aW9uczogW2RlZmF1bHRPcHRpb25zXSxcbiAgICAgIH0sXG5cbiAgICAgIC8vIOKchSBEeW5hbWljIGltcG9ydCAtIO2XiOyaqeuQmOuKlCDqsr3smrBcbiAgICAgIHtcbiAgICAgICAgY29kZTogYGNvbnN0IENvbXBvbmVudCA9IGF3YWl0IGltcG9ydCgnQC9jb3JlL2NvbXBvbmVudHMvTW9kYWwnKTtgLFxuICAgICAgICBmaWxlbmFtZTogXCIvcHJvamVjdC9zcmMvdGVhbXMvdGVhbS1vcmRlci9wYWdlcy9PcmRlclBhZ2UudHN4XCIsXG4gICAgICAgIG9wdGlvbnM6IFtkZWZhdWx0T3B0aW9uc10sXG4gICAgICB9LFxuICAgICAge1xuICAgICAgICBjb2RlOiBgY29uc3QgeyBPcmRlclV0aWxzIH0gPSBhd2FpdCBpbXBvcnQoJ0AvdGVhbXMvdGVhbS1vcmRlci91dGlscy9vcmRlclV0aWxzJyk7YCxcbiAgICAgICAgZmlsZW5hbWU6IFwiL3Byb2plY3Qvc3JjL3RlYW1zL3RlYW0tb3JkZXIvY29tcG9uZW50cy9PcmRlckxpc3QudHN4XCIsXG4gICAgICAgIG9wdGlvbnM6IFtkZWZhdWx0T3B0aW9uc10sXG4gICAgICB9LFxuXG4gICAgICAvLyDinIUg7YyAIO2PtOuNlCDsmbjrtoDsl5DshJzripQg7KCc7ZWcIOyXhuydjFxuICAgICAge1xuICAgICAgICBjb2RlOiBgaW1wb3J0IHsgUHJvZmlsZUNvbXBvbmVudCB9IGZyb20gJ0AvdGVhbXMvdGVhbS1wcm9maWxlL2NvbXBvbmVudHMvUHJvZmlsZSc7YCxcbiAgICAgICAgZmlsZW5hbWU6IFwiL3Byb2plY3Qvc3JjL2NvcmUvY29tcG9uZW50cy9MYXlvdXQudHN4XCIsXG4gICAgICAgIG9wdGlvbnM6IFtkZWZhdWx0T3B0aW9uc10sXG4gICAgICB9LFxuXG4gICAgICAvLyDinIUg7Luk7Iqk7YWAIOyEpOyglSDthYzsiqTtirhcbiAgICAgIHtcbiAgICAgICAgY29kZTogYGltcG9ydCB7IEhlbHBlciB9IGZyb20gJ0AvdXRpbHMvaGVscGVyJztgLFxuICAgICAgICBmaWxlbmFtZTogXCIvcHJvamVjdC9zcmMvdGVhbXMvdGVhbS1vcmRlci9jb21wb25lbnRzL09yZGVyTGlzdC50c3hcIixcbiAgICAgICAgb3B0aW9uczogW1xuICAgICAgICAgIHtcbiAgICAgICAgICAgIC4uLmRlZmF1bHRPcHRpb25zLFxuICAgICAgICAgICAgYWxsb3dlZEdsb2JhbEZvbGRlcnM6IFtcImNvcmVcIiwgXCJzaGFyZWRcIl0sXG4gICAgICAgICAgfSxcbiAgICAgICAgXSxcbiAgICAgIH0sXG4gICAgXSxcblxuICAgIGludmFsaWQ6IFtcbiAgICAgIC8vIOKdjCDri6Trpbgg7YyA7Jy866Gc7J2YIGltcG9ydFxuICAgICAge1xuICAgICAgICBjb2RlOiBgaW1wb3J0IHsgVXNlclByb2ZpbGUgfSBmcm9tICdAL3RlYW1zL3RlYW0tcHJvZmlsZS9jb21wb25lbnRzL1VzZXJQcm9maWxlJztgLFxuICAgICAgICBmaWxlbmFtZTogXCIvcHJvamVjdC9zcmMvdGVhbXMvdGVhbS1vcmRlci9jb21wb25lbnRzL09yZGVyTGlzdC50c3hcIixcbiAgICAgICAgb3B0aW9uczogW2RlZmF1bHRPcHRpb25zXSxcbiAgICAgICAgZXJyb3JzOiBbXG4gICAgICAgICAge1xuICAgICAgICAgICAgbWVzc2FnZUlkOiBcImNyb3NzVGVhbUltcG9ydFwiLFxuICAgICAgICAgICAgZGF0YToge1xuICAgICAgICAgICAgICBjdXJyZW50VGVhbTogXCJ0ZWFtLW9yZGVyXCIsXG4gICAgICAgICAgICAgIHRhcmdldFRlYW06IFwidGVhbS1wcm9maWxlXCIsXG4gICAgICAgICAgICB9LFxuICAgICAgICAgIH0sXG4gICAgICAgIF0sXG4gICAgICB9LFxuXG4gICAgICAvLyDinYwg7YOA7J6FIGltcG9ydOuPhCDsoJztlZzrkKhcbiAgICAgIHtcbiAgICAgICAgY29kZTogYGltcG9ydCB0eXBlIHsgQXV0aFVzZXIgfSBmcm9tICdAL3RlYW1zL3RlYW0tYXV0aC90eXBlcy91c2VyJztgLFxuICAgICAgICBmaWxlbmFtZTogXCIvcHJvamVjdC9zcmMvdGVhbXMvdGVhbS1vcmRlci90eXBlcy9vcmRlci50c1wiLFxuICAgICAgICBvcHRpb25zOiBbZGVmYXVsdE9wdGlvbnNdLFxuICAgICAgICBlcnJvcnM6IFtcbiAgICAgICAgICB7XG4gICAgICAgICAgICBtZXNzYWdlSWQ6IFwiY3Jvc3NUZWFtSW1wb3J0XCIsXG4gICAgICAgICAgICBkYXRhOiB7XG4gICAgICAgICAgICAgIGN1cnJlbnRUZWFtOiBcInRlYW0tb3JkZXJcIixcbiAgICAgICAgICAgICAgdGFyZ2V0VGVhbTogXCJ0ZWFtLWF1dGhcIixcbiAgICAgICAgICAgIH0sXG4gICAgICAgICAgfSxcbiAgICAgICAgXSxcbiAgICAgIH0sXG5cbiAgICAgIC8vIOKdjCDsl6zrn6wg64uk66W4IO2MgCBpbXBvcnRcbiAgICAgIHtcbiAgICAgICAgY29kZTogYFxuICAgICAgICAgIGltcG9ydCB7IEF1dGhTZXJ2aWNlIH0gZnJvbSAnQC90ZWFtcy90ZWFtLWF1dGgvc2VydmljZXMvYXV0aCc7XG4gICAgICAgICAgaW1wb3J0IHR5cGUgeyBQcm9maWxlRGF0YSB9IGZyb20gJ0AvdGVhbXMvdGVhbS1wcm9maWxlL3R5cGVzL3Byb2ZpbGUnO1xuICAgICAgICAgIGltcG9ydCB7IERhc2hib2FyZENoYXJ0IH0gZnJvbSAnQC90ZWFtcy90ZWFtLWRhc2hib2FyZC9jb21wb25lbnRzL0NoYXJ0JztcbiAgICAgICAgYCxcbiAgICAgICAgZmlsZW5hbWU6IFwiL3Byb2plY3Qvc3JjL3RlYW1zL3RlYW0tb3JkZXIvY29tcG9uZW50cy9PcmRlckxpc3QudHN4XCIsXG4gICAgICAgIG9wdGlvbnM6IFtkZWZhdWx0T3B0aW9uc10sXG4gICAgICAgIGVycm9yczogW1xuICAgICAgICAgIHtcbiAgICAgICAgICAgIG1lc3NhZ2VJZDogXCJjcm9zc1RlYW1JbXBvcnRcIixcbiAgICAgICAgICAgIGRhdGE6IHtcbiAgICAgICAgICAgICAgY3VycmVudFRlYW06IFwidGVhbS1vcmRlclwiLFxuICAgICAgICAgICAgICB0YXJnZXRUZWFtOiBcInRlYW0tYXV0aFwiLFxuICAgICAgICAgICAgfSxcbiAgICAgICAgICB9LFxuICAgICAgICAgIHtcbiAgICAgICAgICAgIG1lc3NhZ2VJZDogXCJjcm9zc1RlYW1JbXBvcnRcIixcbiAgICAgICAgICAgIGRhdGE6IHtcbiAgICAgICAgICAgICAgY3VycmVudFRlYW06IFwidGVhbS1vcmRlclwiLFxuICAgICAgICAgICAgICB0YXJnZXRUZWFtOiBcInRlYW0tcHJvZmlsZVwiLFxuICAgICAgICAgICAgfSxcbiAgICAgICAgICB9LFxuICAgICAgICAgIHtcbiAgICAgICAgICAgIG1lc3NhZ2VJZDogXCJjcm9zc1RlYW1JbXBvcnRcIixcbiAgICAgICAgICAgIGRhdGE6IHtcbiAgICAgICAgICAgICAgY3VycmVudFRlYW06IFwidGVhbS1vcmRlclwiLFxuICAgICAgICAgICAgICB0YXJnZXRUZWFtOiBcInRlYW0tZGFzaGJvYXJkXCIsXG4gICAgICAgICAgICB9LFxuICAgICAgICAgIH0sXG4gICAgICAgIF0sXG4gICAgICB9LFxuXG4gICAgICAvLyDinYwgRHluYW1pYyBpbXBvcnTroZwg64uk66W4IO2MgCDsoJHqt7xcbiAgICAgIHtcbiAgICAgICAgY29kZTogYGNvbnN0IFByb2ZpbGVDb21wb25lbnQgPSBhd2FpdCBpbXBvcnQoJ0AvdGVhbXMvdGVhbS1wcm9maWxlL2NvbXBvbmVudHMvUHJvZmlsZScpO2AsXG4gICAgICAgIGZpbGVuYW1lOiBcIi9wcm9qZWN0L3NyYy90ZWFtcy90ZWFtLW9yZGVyL3BhZ2VzL09yZGVyUGFnZS50c3hcIixcbiAgICAgICAgb3B0aW9uczogW2RlZmF1bHRPcHRpb25zXSxcbiAgICAgICAgZXJyb3JzOiBbXG4gICAgICAgICAge1xuICAgICAgICAgICAgbWVzc2FnZUlkOiBcImNyb3NzVGVhbUltcG9ydFwiLFxuICAgICAgICAgICAgZGF0YToge1xuICAgICAgICAgICAgICBjdXJyZW50VGVhbTogXCJ0ZWFtLW9yZGVyXCIsXG4gICAgICAgICAgICAgIHRhcmdldFRlYW06IFwidGVhbS1wcm9maWxlXCIsXG4gICAgICAgICAgICB9LFxuICAgICAgICAgIH0sXG4gICAgICAgIF0sXG4gICAgICB9LFxuXG4gICAgICAvLyDinYwg7ZeI7Jqp65CY7KeAIOyViuydgCDtj7TrjZTsl5DshJwgaW1wb3J0XG4gICAgICB7XG4gICAgICAgIGNvZGU6IGBpbXBvcnQgeyBVdGlscyB9IGZyb20gJ0AvdXRpbHMvaGVscGVyJztgLFxuICAgICAgICBmaWxlbmFtZTogXCIvcHJvamVjdC9zcmMvdGVhbXMvdGVhbS1vcmRlci9jb21wb25lbnRzL09yZGVyTGlzdC50c3hcIixcbiAgICAgICAgb3B0aW9uczogW2RlZmF1bHRPcHRpb25zXSxcbiAgICAgICAgZXJyb3JzOiBbXG4gICAgICAgICAge1xuICAgICAgICAgICAgbWVzc2FnZUlkOiBcInJlc3RyaWN0ZWRJbXBvcnRcIixcbiAgICAgICAgICAgIGRhdGE6IHtcbiAgICAgICAgICAgICAgY3VycmVudFRlYW06IFwidGVhbS1vcmRlclwiLFxuICAgICAgICAgICAgICBpbXBvcnRQYXRoOiBcIkAvdXRpbHMvaGVscGVyXCIsXG4gICAgICAgICAgICB9LFxuICAgICAgICAgIH0sXG4gICAgICAgIF0sXG4gICAgICB9LFxuXG4gICAgICAvLyDinYwg7ZeI7Jqp65CY7KeAIOyViuydgCBsaWIg7Y+0642UXG4gICAgICB7XG4gICAgICAgIGNvZGU6IGBpbXBvcnQgdHlwZSB7IExpYkNvbmZpZyB9IGZyb20gJ0AvbGliL2NvbmZpZyc7YCxcbiAgICAgICAgZmlsZW5hbWU6IFwiL3Byb2plY3Qvc3JjL3RlYW1zL3RlYW0tYXV0aC9wYWdlcy9Mb2dpblBhZ2UudHN4XCIsXG4gICAgICAgIG9wdGlvbnM6IFtkZWZhdWx0T3B0aW9uc10sXG4gICAgICAgIGVycm9yczogW1xuICAgICAgICAgIHtcbiAgICAgICAgICAgIG1lc3NhZ2VJZDogXCJyZXN0cmljdGVkSW1wb3J0XCIsXG4gICAgICAgICAgICBkYXRhOiB7XG4gICAgICAgICAgICAgIGN1cnJlbnRUZWFtOiBcInRlYW0tYXV0aFwiLFxuICAgICAgICAgICAgICBpbXBvcnRQYXRoOiBcIkAvbGliL2NvbmZpZ1wiLFxuICAgICAgICAgICAgfSxcbiAgICAgICAgICB9LFxuICAgICAgICBdLFxuICAgICAgfSxcblxuICAgICAgLy8g4p2MIOy7pOyKpO2FgCDshKTsoJXsl5DshJzrj4Qg7YGs66Gc7IqkIO2MgCBpbXBvcnQg6riI7KeAXG4gICAgICB7XG4gICAgICAgIGNvZGU6IGBpbXBvcnQgeyBBdXRoQ29tcG9uZW50IH0gZnJvbSAnQC90ZWFtcy90ZWFtLWF1dGgvY29tcG9uZW50cy9BdXRoJztgLFxuICAgICAgICBmaWxlbmFtZTogXCIvcHJvamVjdC9zcmMvdGVhbXMvdGVhbS1vcmRlci9jb21wb25lbnRzL09yZGVyTGlzdC50c3hcIixcbiAgICAgICAgb3B0aW9uczogW1xuICAgICAgICAgIHtcbiAgICAgICAgICAgIC4uLmRlZmF1bHRPcHRpb25zLFxuICAgICAgICAgICAgYWxsb3dlZEdsb2JhbEZvbGRlcnM6IFtcImNvcmVcIiwgXCJzaGFyZWRcIiwgXCJ1dGlsc1wiXSxcbiAgICAgICAgICB9LFxuICAgICAgICBdLFxuICAgICAgICBlcnJvcnM6IFtcbiAgICAgICAgICB7XG4gICAgICAgICAgICBtZXNzYWdlSWQ6IFwiY3Jvc3NUZWFtSW1wb3J0XCIsXG4gICAgICAgICAgICBkYXRhOiB7XG4gICAgICAgICAgICAgIGN1cnJlbnRUZWFtOiBcInRlYW0tb3JkZXJcIixcbiAgICAgICAgICAgICAgdGFyZ2V0VGVhbTogXCJ0ZWFtLWF1dGhcIixcbiAgICAgICAgICAgIH0sXG4gICAgICAgICAgfSxcbiAgICAgICAgXSxcbiAgICAgIH0sXG4gICAgXSxcbiAgfSk7XG5cbiAgLy8g8J+nqiDsu6TsiqTthYAg7ISk7KCVIO2FjOyKpO2KuFxuICBkZXNjcmliZShcIuy7pOyKpO2FgCDshKTsoJUg7YWM7Iqk7Yq4XCIsICgpID0+IHtcbiAgICBjb25zdCBjdXN0b21PcHRpb25zOiBUZWFtSW1wb3J0UnVsZU9wdGlvbnMgPSB7XG4gICAgICBhbGxvd2VkR2xvYmFsRm9sZGVyczogW1wic2hhcmVkXCIsIFwiZW50aXRpZXNcIiwgXCJ3aWRnZXRzXCJdLFxuICAgICAgdGVhbUZvbGRlclByZWZpeDogXCJmZWF0dXJlLVwiLFxuICAgICAgdGVhbXNCYXNlUGF0aDogXCJzcmMvZmVhdHVyZXNcIixcbiAgICB9O1xuXG4gICAgcnVsZVRlc3Rlci5ydW4oXCJyZXN0cmljdC10ZWFtLWltcG9ydHMgd2l0aCBjdXN0b20gY29uZmlnXCIsIHJ1bGUsIHtcbiAgICAgIHZhbGlkOiBbXG4gICAgICAgIC8vIOKchSDsu6TsiqTthYAgYWxsb3dlZEdsb2JhbEZvbGRlcnMg7YWM7Iqk7Yq4XG4gICAgICAgIHtcbiAgICAgICAgICBjb2RlOiBgaW1wb3J0IHsgRW50aXR5TW9kZWwgfSBmcm9tICdAL2VudGl0aWVzL3VzZXInO2AsXG4gICAgICAgICAgZmlsZW5hbWU6XG4gICAgICAgICAgICBcIi9wcm9qZWN0L3NyYy9mZWF0dXJlcy9mZWF0dXJlLW9yZGVyL2NvbXBvbmVudHMvT3JkZXJMaXN0LnRzeFwiLFxuICAgICAgICAgIG9wdGlvbnM6IFtjdXN0b21PcHRpb25zXSxcbiAgICAgICAgfSxcbiAgICAgICAge1xuICAgICAgICAgIGNvZGU6IGBpbXBvcnQgeyBXaWRnZXRDb21wb25lbnQgfSBmcm9tICdAL3dpZGdldHMvaGVhZGVyJztgLFxuICAgICAgICAgIGZpbGVuYW1lOiBcIi9wcm9qZWN0L3NyYy9mZWF0dXJlcy9mZWF0dXJlLWF1dGgvcGFnZXMvTG9naW5QYWdlLnRzeFwiLFxuICAgICAgICAgIG9wdGlvbnM6IFtjdXN0b21PcHRpb25zXSxcbiAgICAgICAgfSxcblxuICAgICAgICAvLyDinIUg7Luk7Iqk7YWAIHRlYW1Gb2xkZXJQcmVmaXgg7YWM7Iqk7Yq4XG4gICAgICAgIHtcbiAgICAgICAgICBjb2RlOiBgaW1wb3J0IHsgRmVhdHVyZUNvbXBvbmVudCB9IGZyb20gJ0AvdGVhbXMvZmVhdHVyZS1hdXRoL2NvbXBvbmVudHMvQXV0aCc7YCxcbiAgICAgICAgICBmaWxlbmFtZTogXCIvcHJvamVjdC9zcmMvZmVhdHVyZXMvZmVhdHVyZS1hdXRoL3BhZ2VzL0xvZ2luUGFnZS50c3hcIixcbiAgICAgICAgICBvcHRpb25zOiBbY3VzdG9tT3B0aW9uc10sXG4gICAgICAgIH0sXG4gICAgICBdLFxuXG4gICAgICBpbnZhbGlkOiBbXG4gICAgICAgIC8vIOKdjCDsu6TsiqTthYAg7ISk7KCV7JeQ7ISc64+EIO2BrOuhnOyKpCDtjIAgaW1wb3J0IOq4iOyngFxuICAgICAgICB7XG4gICAgICAgICAgY29kZTogYGltcG9ydCB7IEF1dGhDb21wb25lbnQgfSBmcm9tICdAL3RlYW1zL2ZlYXR1cmUtYXV0aC9jb21wb25lbnRzL0F1dGgnO2AsXG4gICAgICAgICAgZmlsZW5hbWU6XG4gICAgICAgICAgICBcIi9wcm9qZWN0L3NyYy9mZWF0dXJlcy9mZWF0dXJlLW9yZGVyL2NvbXBvbmVudHMvT3JkZXJMaXN0LnRzeFwiLFxuICAgICAgICAgIG9wdGlvbnM6IFtjdXN0b21PcHRpb25zXSxcbiAgICAgICAgICBlcnJvcnM6IFtcbiAgICAgICAgICAgIHtcbiAgICAgICAgICAgICAgbWVzc2FnZUlkOiBcImNyb3NzVGVhbUltcG9ydFwiLFxuICAgICAgICAgICAgICBkYXRhOiB7XG4gICAgICAgICAgICAgICAgY3VycmVudFRlYW06IFwiZmVhdHVyZS1vcmRlclwiLFxuICAgICAgICAgICAgICAgIHRhcmdldFRlYW06IFwiZmVhdHVyZS1hdXRoXCIsXG4gICAgICAgICAgICAgIH0sXG4gICAgICAgICAgICB9LFxuICAgICAgICAgIF0sXG4gICAgICAgIH0sXG4gICAgICBdLFxuICAgIH0pO1xuICB9KTtcblxuICAvLyDwn6eqIOyXo+yngCDsvIDsnbTsiqQg7YWM7Iqk7Yq4XG4gIGRlc2NyaWJlKFwi7Jej7KeAIOy8gOydtOyKpCDthYzsiqTtirhcIiwgKCkgPT4ge1xuICAgIHJ1bGVUZXN0ZXIucnVuKFwicmVzdHJpY3QtdGVhbS1pbXBvcnRzIGVkZ2UgY2FzZXNcIiwgcnVsZSwge1xuICAgICAgdmFsaWQ6IFtcbiAgICAgICAgLy8g4pyFIOq5iuydgCDspJHssqkg7Y+0642UIOq1rOyhsFxuICAgICAgICB7XG4gICAgICAgICAgY29kZTogYGltcG9ydCB7IERlZXBDb21wb25lbnQgfSBmcm9tICdAL3RlYW1zL3RlYW0tb3JkZXIvY29tcG9uZW50cy9mb3Jtcy9pbnB1dHMvVGV4dElucHV0JztgLFxuICAgICAgICAgIGZpbGVuYW1lOlxuICAgICAgICAgICAgXCIvcHJvamVjdC9zcmMvdGVhbXMvdGVhbS1vcmRlci9wYWdlcy9vcmRlci9kZXRhaWwvT3JkZXJEZXRhaWwudHN4XCIsXG4gICAgICAgICAgb3B0aW9uczogW2RlZmF1bHRPcHRpb25zXSxcbiAgICAgICAgfSxcblxuICAgICAgICAvLyDinIUg64yA7IaM66y47J6QIO2YvO2VqSAo7Iuk7KCcIO2MgOuqhSDqsJDsp4ApXG4gICAgICAgIHtcbiAgICAgICAgICBjb2RlOiBgaW1wb3J0IHsgQ29tcG9uZW50IH0gZnJvbSAnQC90ZWFtcy9UZWFtLU9yZGVyL2NvbXBvbmVudHMvQnV0dG9uJztgLFxuICAgICAgICAgIGZpbGVuYW1lOiBcIi9wcm9qZWN0L3NyYy90ZWFtcy9UZWFtLU9yZGVyL3BhZ2VzL09yZGVyUGFnZS50c3hcIixcbiAgICAgICAgICBvcHRpb25zOiBbZGVmYXVsdE9wdGlvbnNdLFxuICAgICAgICB9LFxuXG4gICAgICAgIC8vIOKchSDrs7XsnqHtlZwgaW1wb3J0IOq1rOyhsFxuICAgICAgICB7XG4gICAgICAgICAgY29kZTogYGltcG9ydCB7IFxuICAgICAgICAgICAgT3JkZXJTZXJ2aWNlLCBcbiAgICAgICAgICAgIHR5cGUgT3JkZXJDb25maWcsXG4gICAgICAgICAgICBPUkRFUl9DT05TVEFOVFMgXG4gICAgICAgICAgfSBmcm9tICdAL3RlYW1zL3RlYW0tb3JkZXIvc2VydmljZXMvb3JkZXJTZXJ2aWNlJztgLFxuICAgICAgICAgIGZpbGVuYW1lOiBcIi9wcm9qZWN0L3NyYy90ZWFtcy90ZWFtLW9yZGVyL2NvbXBvbmVudHMvT3JkZXJMaXN0LnRzeFwiLFxuICAgICAgICAgIG9wdGlvbnM6IFtkZWZhdWx0T3B0aW9uc10sXG4gICAgICAgIH0sXG5cbiAgICAgICAgLy8g4pyFIOuEpOyehOyKpO2OmOydtOyKpCBpbXBvcnRcbiAgICAgICAge1xuICAgICAgICAgIGNvZGU6IGBpbXBvcnQgKiBhcyBPcmRlclV0aWxzIGZyb20gJ0AvdGVhbXMvdGVhbS1vcmRlci91dGlscy9vcmRlclV0aWxzJztgLFxuICAgICAgICAgIGZpbGVuYW1lOiBcIi9wcm9qZWN0L3NyYy90ZWFtcy90ZWFtLW9yZGVyL2NvbXBvbmVudHMvT3JkZXJMaXN0LnRzeFwiLFxuICAgICAgICAgIG9wdGlvbnM6IFtkZWZhdWx0T3B0aW9uc10sXG4gICAgICAgIH0sXG5cbiAgICAgICAgLy8g4pyFIOyhsOqxtOu2gCBpbXBvcnQgKOuPmeyggSlcbiAgICAgICAge1xuICAgICAgICAgIGNvZGU6IGBcbiAgICAgICAgICAgIGlmIChjb25kaXRpb24pIHtcbiAgICAgICAgICAgICAgY29uc3QgeyBPcmRlck1vZGFsIH0gPSBhd2FpdCBpbXBvcnQoJ0AvdGVhbXMvdGVhbS1vcmRlci9jb21wb25lbnRzL09yZGVyTW9kYWwnKTtcbiAgICAgICAgICAgIH1cbiAgICAgICAgICBgLFxuICAgICAgICAgIGZpbGVuYW1lOiBcIi9wcm9qZWN0L3NyYy90ZWFtcy90ZWFtLW9yZGVyL3BhZ2VzL09yZGVyUGFnZS50c3hcIixcbiAgICAgICAgICBvcHRpb25zOiBbZGVmYXVsdE9wdGlvbnNdLFxuICAgICAgICB9LFxuXG4gICAgICAgIC8vIOKchSBSZS1leHBvcnQgKOqwmeydgCDtjIAg64K0KVxuICAgICAgICB7XG4gICAgICAgICAgY29kZTogYGV4cG9ydCB7IE9yZGVyQnV0dG9uIH0gZnJvbSAnQC90ZWFtcy90ZWFtLW9yZGVyL2NvbXBvbmVudHMvT3JkZXJCdXR0b24nO2AsXG4gICAgICAgICAgZmlsZW5hbWU6IFwiL3Byb2plY3Qvc3JjL3RlYW1zL3RlYW0tb3JkZXIvaW5kZXgudHNcIixcbiAgICAgICAgICBvcHRpb25zOiBbZGVmYXVsdE9wdGlvbnNdLFxuICAgICAgICB9LFxuXG4gICAgICAgIC8vIOKchSDtg4DsnoUg7KCE7JqpIGltcG9ydFxuICAgICAgICB7XG4gICAgICAgICAgY29kZTogYGltcG9ydCB0eXBlIHsgT3JkZXJTdGF0dXMsIE9yZGVyUHJpb3JpdHkgfSBmcm9tICdAL3RlYW1zL3RlYW0tb3JkZXIvdHlwZXMvb3JkZXInO2AsXG4gICAgICAgICAgZmlsZW5hbWU6IFwiL3Byb2plY3Qvc3JjL3RlYW1zL3RlYW0tb3JkZXIvaG9va3MvdXNlT3JkZXIudHNcIixcbiAgICAgICAgICBvcHRpb25zOiBbZGVmYXVsdE9wdGlvbnNdLFxuICAgICAgICB9LFxuICAgICAgXSxcblxuICAgICAgaW52YWxpZDogW1xuICAgICAgICAvLyDinYwg6rmK7J2AIOykkeyyqeyXkOyEnOuPhCDtgazroZzsiqQg7YyAIOqwkOyngFxuICAgICAgICB7XG4gICAgICAgICAgY29kZTogYGltcG9ydCB7IFByb2ZpbGVGb3JtIH0gZnJvbSAnQC90ZWFtcy90ZWFtLXByb2ZpbGUvY29tcG9uZW50cy9mb3Jtcy9Qcm9maWxlRm9ybSc7YCxcbiAgICAgICAgICBmaWxlbmFtZTpcbiAgICAgICAgICAgIFwiL3Byb2plY3Qvc3JjL3RlYW1zL3RlYW0tb3JkZXIvcGFnZXMvb3JkZXIvZGV0YWlsL09yZGVyRGV0YWlsLnRzeFwiLFxuICAgICAgICAgIG9wdGlvbnM6IFtkZWZhdWx0T3B0aW9uc10sXG4gICAgICAgICAgZXJyb3JzOiBbXG4gICAgICAgICAgICB7XG4gICAgICAgICAgICAgIG1lc3NhZ2VJZDogXCJjcm9zc1RlYW1JbXBvcnRcIixcbiAgICAgICAgICAgICAgZGF0YToge1xuICAgICAgICAgICAgICAgIGN1cnJlbnRUZWFtOiBcInRlYW0tb3JkZXJcIixcbiAgICAgICAgICAgICAgICB0YXJnZXRUZWFtOiBcInRlYW0tcHJvZmlsZVwiLFxuICAgICAgICAgICAgICB9LFxuICAgICAgICAgICAgfSxcbiAgICAgICAgICBdLFxuICAgICAgICB9LFxuXG4gICAgICAgIC8vIOKdjCDrs7XsnqHtlZwgaW1wb3J07JeQ7ISc64+EIOqwkOyngFxuICAgICAgICB7XG4gICAgICAgICAgY29kZTogYGltcG9ydCB7IFxuICAgICAgICAgICAgQXV0aFNlcnZpY2UsXG4gICAgICAgICAgICB0eXBlIEF1dGhDb25maWcgXG4gICAgICAgICAgfSBmcm9tICdAL3RlYW1zL3RlYW0tYXV0aC9zZXJ2aWNlcy9hdXRoU2VydmljZSc7YCxcbiAgICAgICAgICBmaWxlbmFtZTogXCIvcHJvamVjdC9zcmMvdGVhbXMvdGVhbS1vcmRlci9jb21wb25lbnRzL09yZGVyTGlzdC50c3hcIixcbiAgICAgICAgICBvcHRpb25zOiBbZGVmYXVsdE9wdGlvbnNdLFxuICAgICAgICAgIGVycm9yczogW1xuICAgICAgICAgICAge1xuICAgICAgICAgICAgICBtZXNzYWdlSWQ6IFwiY3Jvc3NUZWFtSW1wb3J0XCIsXG4gICAgICAgICAgICAgIGRhdGE6IHtcbiAgICAgICAgICAgICAgICBjdXJyZW50VGVhbTogXCJ0ZWFtLW9yZGVyXCIsXG4gICAgICAgICAgICAgICAgdGFyZ2V0VGVhbTogXCJ0ZWFtLWF1dGhcIixcbiAgICAgICAgICAgICAgfSxcbiAgICAgICAgICAgIH0sXG4gICAgICAgICAgXSxcbiAgICAgICAgfSxcblxuICAgICAgICAvLyDinYwg64Sk7J6E7Iqk7Y6Y7J207IqkIGltcG9ydOuPhCDsoJztlZxcbiAgICAgICAge1xuICAgICAgICAgIGNvZGU6IGBpbXBvcnQgKiBhcyBQcm9maWxlVXRpbHMgZnJvbSAnQC90ZWFtcy90ZWFtLXByb2ZpbGUvdXRpbHMvcHJvZmlsZVV0aWxzJztgLFxuICAgICAgICAgIGZpbGVuYW1lOiBcIi9wcm9qZWN0L3NyYy90ZWFtcy90ZWFtLW9yZGVyL2NvbXBvbmVudHMvT3JkZXJMaXN0LnRzeFwiLFxuICAgICAgICAgIG9wdGlvbnM6IFtkZWZhdWx0T3B0aW9uc10sXG4gICAgICAgICAgZXJyb3JzOiBbXG4gICAgICAgICAgICB7XG4gICAgICAgICAgICAgIG1lc3NhZ2VJZDogXCJjcm9zc1RlYW1JbXBvcnRcIixcbiAgICAgICAgICAgICAgZGF0YToge1xuICAgICAgICAgICAgICAgIGN1cnJlbnRUZWFtOiBcInRlYW0tb3JkZXJcIixcbiAgICAgICAgICAgICAgICB0YXJnZXRUZWFtOiBcInRlYW0tcHJvZmlsZVwiLFxuICAgICAgICAgICAgICB9LFxuICAgICAgICAgICAgfSxcbiAgICAgICAgICBdLFxuICAgICAgICB9LFxuXG4gICAgICAgIC8vIOKdjCBSZS1leHBvcnTrj4Qg7KCc7ZWcXG4gICAgICAgIHtcbiAgICAgICAgICBjb2RlOiBgZXhwb3J0IHsgUHJvZmlsZUNhcmQgfSBmcm9tICdAL3RlYW1zL3RlYW0tcHJvZmlsZS9jb21wb25lbnRzL1Byb2ZpbGVDYXJkJztgLFxuICAgICAgICAgIGZpbGVuYW1lOiBcIi9wcm9qZWN0L3NyYy90ZWFtcy90ZWFtLW9yZGVyL2luZGV4LnRzXCIsXG4gICAgICAgICAgb3B0aW9uczogW2RlZmF1bHRPcHRpb25zXSxcbiAgICAgICAgICBlcnJvcnM6IFtcbiAgICAgICAgICAgIHtcbiAgICAgICAgICAgICAgbWVzc2FnZUlkOiBcImNyb3NzVGVhbUltcG9ydFwiLFxuICAgICAgICAgICAgICBkYXRhOiB7XG4gICAgICAgICAgICAgICAgY3VycmVudFRlYW06IFwidGVhbS1vcmRlclwiLFxuICAgICAgICAgICAgICAgIHRhcmdldFRlYW06IFwidGVhbS1wcm9maWxlXCIsXG4gICAgICAgICAgICAgIH0sXG4gICAgICAgICAgICB9LFxuICAgICAgICAgIF0sXG4gICAgICAgIH0sXG5cbiAgICAgICAgLy8g4p2MIOyhsOqxtOu2gCDrj5nsoIEgaW1wb3J064+EIOygnO2VnFxuICAgICAgICB7XG4gICAgICAgICAgY29kZTogYFxuICAgICAgICAgICAgaWYgKHNob3dQcm9maWxlKSB7XG4gICAgICAgICAgICAgIGNvbnN0IHsgUHJvZmlsZU1vZGFsIH0gPSBhd2FpdCBpbXBvcnQoJ0AvdGVhbXMvdGVhbS1wcm9maWxlL2NvbXBvbmVudHMvUHJvZmlsZU1vZGFsJyk7XG4gICAgICAgICAgICB9XG4gICAgICAgICAgYCxcbiAgICAgICAgICBmaWxlbmFtZTogXCIvcHJvamVjdC9zcmMvdGVhbXMvdGVhbS1vcmRlci9wYWdlcy9PcmRlclBhZ2UudHN4XCIsXG4gICAgICAgICAgb3B0aW9uczogW2RlZmF1bHRPcHRpb25zXSxcbiAgICAgICAgICBlcnJvcnM6IFtcbiAgICAgICAgICAgIHtcbiAgICAgICAgICAgICAgbWVzc2FnZUlkOiBcImNyb3NzVGVhbUltcG9ydFwiLFxuICAgICAgICAgICAgICBkYXRhOiB7XG4gICAgICAgICAgICAgICAgY3VycmVudFRlYW06IFwidGVhbS1vcmRlclwiLFxuICAgICAgICAgICAgICAgIHRhcmdldFRlYW06IFwidGVhbS1wcm9maWxlXCIsXG4gICAgICAgICAgICAgIH0sXG4gICAgICAgICAgICB9LFxuICAgICAgICAgIF0sXG4gICAgICAgIH0sXG4gICAgICBdLFxuICAgIH0pO1xuICB9KTtcblxuICAvLyDwn6eqIOyLpOygnCDsi5zrgpjrpqzsmKQg7YWM7Iqk7Yq4XG4gIGRlc2NyaWJlKFwi7Iuk7KCcIOyCrOyaqSDsi5zrgpjrpqzsmKRcIiwgKCkgPT4ge1xuICAgIHJ1bGVUZXN0ZXIucnVuKFwicmVhbGlzdGljIHNjZW5hcmlvc1wiLCBydWxlLCB7XG4gICAgICB2YWxpZDogW1xuICAgICAgICAvLyDinIUg7Iuk7KCcIE5leHQuanMg7Lu07Y+s64SM7Yq4IO2MqO2EtFxuICAgICAgICB7XG4gICAgICAgICAgY29kZTogYFxuICAgICAgICAgICAgJ3VzZSBjbGllbnQnO1xuICAgICAgICAgICAgXG4gICAgICAgICAgICBpbXBvcnQgUmVhY3QsIHsgdXNlU3RhdGUsIHVzZUNhbGxiYWNrIH0gZnJvbSAncmVhY3QnO1xuICAgICAgICAgICAgaW1wb3J0IHR5cGUgeyBGQywgTW91c2VFdmVudCB9IGZyb20gJ3JlYWN0JztcbiAgICAgICAgICAgIGltcG9ydCB7IEJ1dHRvbiB9IGZyb20gJ0AvY29yZS9jb21wb25lbnRzL3VpL0J1dHRvbic7XG4gICAgICAgICAgICBpbXBvcnQgeyBDYXJkIH0gZnJvbSAnQC9jb3JlL2NvbXBvbmVudHMvdWkvQ2FyZCc7XG4gICAgICAgICAgICBpbXBvcnQgeyB1c2VUb2FzdCB9IGZyb20gJ0AvY29yZS9ob29rcy91c2VUb2FzdCc7XG4gICAgICAgICAgICBpbXBvcnQgeyBBcGlDbGllbnQgfSBmcm9tICdAL3NoYXJlZC9hcGkvY2xpZW50JztcbiAgICAgICAgICAgIGltcG9ydCB0eXBlIHsgQXBpUmVzcG9uc2UgfSBmcm9tICdAL3NoYXJlZC90eXBlcy9hcGknO1xuICAgICAgICAgICAgaW1wb3J0IHsgT3JkZXJTZXJ2aWNlIH0gZnJvbSAnQC90ZWFtcy90ZWFtLW9yZGVyL3NlcnZpY2VzL29yZGVyU2VydmljZSc7XG4gICAgICAgICAgICBpbXBvcnQgdHlwZSB7IE9yZGVyLCBPcmRlclN0YXR1cyB9IGZyb20gJ0AvdGVhbXMvdGVhbS1vcmRlci90eXBlcy9vcmRlcic7XG4gICAgICAgICAgICBpbXBvcnQgeyB1c2VPcmRlciB9IGZyb20gJy4uL2hvb2tzL3VzZU9yZGVyJztcbiAgICAgICAgICAgIFxuICAgICAgICAgICAgaW50ZXJmYWNlIE9yZGVyTGlzdFByb3BzIHtcbiAgICAgICAgICAgICAgaW5pdGlhbE9yZGVyczogT3JkZXJbXTtcbiAgICAgICAgICAgICAgb25PcmRlclVwZGF0ZT86IChvcmRlcjogT3JkZXIpID0+IHZvaWQ7XG4gICAgICAgICAgICB9XG4gICAgICAgICAgICBcbiAgICAgICAgICAgIGV4cG9ydCBjb25zdCBPcmRlckxpc3Q6IEZDPE9yZGVyTGlzdFByb3BzPiA9ICh7IGluaXRpYWxPcmRlcnMsIG9uT3JkZXJVcGRhdGUgfSkgPT4ge1xuICAgICAgICAgICAgICBjb25zdCBbb3JkZXJzLCBzZXRPcmRlcnNdID0gdXNlU3RhdGU8T3JkZXJbXT4oaW5pdGlhbE9yZGVycyk7XG4gICAgICAgICAgICAgIGNvbnN0IHsgdXBkYXRlT3JkZXJTdGF0dXMgfSA9IHVzZU9yZGVyKCk7XG4gICAgICAgICAgICAgIGNvbnN0IHsgc2hvd1RvYXN0IH0gPSB1c2VUb2FzdCgpO1xuICAgICAgICAgICAgICBcbiAgICAgICAgICAgICAgY29uc3QgaGFuZGxlU3RhdHVzQ2hhbmdlID0gdXNlQ2FsbGJhY2soYXN5bmMgKG9yZGVySWQ6IHN0cmluZywgc3RhdHVzOiBPcmRlclN0YXR1cykgPT4ge1xuICAgICAgICAgICAgICAgIHRyeSB7XG4gICAgICAgICAgICAgICAgICBjb25zdCB1cGRhdGVkT3JkZXIgPSBhd2FpdCBPcmRlclNlcnZpY2UudXBkYXRlU3RhdHVzKG9yZGVySWQsIHN0YXR1cyk7XG4gICAgICAgICAgICAgICAgICBzZXRPcmRlcnMocHJldiA9PiBwcmV2Lm1hcChvcmRlciA9PiBcbiAgICAgICAgICAgICAgICAgICAgb3JkZXIuaWQgPT09IG9yZGVySWQgPyB1cGRhdGVkT3JkZXIgOiBvcmRlclxuICAgICAgICAgICAgICAgICAgKSk7XG4gICAgICAgICAgICAgICAgICBvbk9yZGVyVXBkYXRlPy4odXBkYXRlZE9yZGVyKTtcbiAgICAgICAgICAgICAgICAgIHNob3dUb2FzdCgn7KO866y4IOyDge2DnOqwgCDsl4XrjbDsnbTtirjrkJjsl4jsirXri4jri6QuJyk7XG4gICAgICAgICAgICAgICAgfSBjYXRjaCAoZXJyb3IpIHtcbiAgICAgICAgICAgICAgICAgIHNob3dUb2FzdCgn7JeF642w7J207Yq47JeQIOyLpO2MqO2WiOyKteuLiOuLpC4nLCAnZXJyb3InKTtcbiAgICAgICAgICAgICAgICB9XG4gICAgICAgICAgICAgIH0sIFtvbk9yZGVyVXBkYXRlLCBzaG93VG9hc3RdKTtcbiAgICAgICAgICAgICAgXG4gICAgICAgICAgICAgIHJldHVybiAoXG4gICAgICAgICAgICAgICAgPGRpdiBjbGFzc05hbWU9XCJzcGFjZS15LTRcIj5cbiAgICAgICAgICAgICAgICAgIHtvcmRlcnMubWFwKG9yZGVyID0+IChcbiAgICAgICAgICAgICAgICAgICAgPENhcmQga2V5PXtvcmRlci5pZH0+XG4gICAgICAgICAgICAgICAgICAgICAgey8qIOyjvOusuCDsubTrk5wg64K07JqpICovfVxuICAgICAgICAgICAgICAgICAgICA8L0NhcmQ+XG4gICAgICAgICAgICAgICAgICApKX1cbiAgICAgICAgICAgICAgICA8L2Rpdj5cbiAgICAgICAgICAgICAgKTtcbiAgICAgICAgICAgIH07XG4gICAgICAgICAgYCxcbiAgICAgICAgICBmaWxlbmFtZTogXCIvcHJvamVjdC9zcmMvdGVhbXMvdGVhbS1vcmRlci9jb21wb25lbnRzL09yZGVyTGlzdC50c3hcIixcbiAgICAgICAgICBvcHRpb25zOiBbZGVmYXVsdE9wdGlvbnNdLFxuICAgICAgICB9LFxuXG4gICAgICAgIC8vIOKchSDshJzruYTsiqQg66CI7J207Ja0IO2MqO2EtFxuICAgICAgICB7XG4gICAgICAgICAgY29kZTogYFxuICAgICAgICAgICAgaW1wb3J0IHsgQXBpQ2xpZW50IH0gZnJvbSAnQC9zaGFyZWQvYXBpL2NsaWVudCc7XG4gICAgICAgICAgICBpbXBvcnQgdHlwZSB7IEFwaVJlc3BvbnNlLCBQYWdpbmF0aW9uUGFyYW1zIH0gZnJvbSAnQC9zaGFyZWQvdHlwZXMvYXBpJztcbiAgICAgICAgICAgIGltcG9ydCB7IGhhbmRsZUFwaUVycm9yIH0gZnJvbSAnQC9zaGFyZWQvdXRpbHMvZXJyb3JIYW5kbGVyJztcbiAgICAgICAgICAgIGltcG9ydCB0eXBlIHsgT3JkZXIsIENyZWF0ZU9yZGVyRGF0YSwgVXBkYXRlT3JkZXJEYXRhIH0gZnJvbSAnQC90ZWFtcy90ZWFtLW9yZGVyL3R5cGVzL29yZGVyJztcbiAgICAgICAgICAgIFxuICAgICAgICAgICAgZXhwb3J0IGNsYXNzIE9yZGVyU2VydmljZSB7XG4gICAgICAgICAgICAgIHByaXZhdGUgc3RhdGljIHJlYWRvbmx5IEJBU0VfUEFUSCA9ICcvYXBpL29yZGVycyc7XG4gICAgICAgICAgICAgIFxuICAgICAgICAgICAgICBzdGF0aWMgYXN5bmMgZ2V0T3JkZXJzKHBhcmFtcz86IFBhZ2luYXRpb25QYXJhbXMpOiBQcm9taXNlPEFwaVJlc3BvbnNlPE9yZGVyW10+PiB7XG4gICAgICAgICAgICAgICAgdHJ5IHtcbiAgICAgICAgICAgICAgICAgIHJldHVybiBhd2FpdCBBcGlDbGllbnQuZ2V0KHRoaXMuQkFTRV9QQVRILCB7IHBhcmFtcyB9KTtcbiAgICAgICAgICAgICAgICB9IGNhdGNoIChlcnJvcikge1xuICAgICAgICAgICAgICAgICAgdGhyb3cgaGFuZGxlQXBpRXJyb3IoZXJyb3IpO1xuICAgICAgICAgICAgICAgIH1cbiAgICAgICAgICAgICAgfVxuICAgICAgICAgICAgICBcbiAgICAgICAgICAgICAgc3RhdGljIGFzeW5jIGNyZWF0ZU9yZGVyKGRhdGE6IENyZWF0ZU9yZGVyRGF0YSk6IFByb21pc2U8QXBpUmVzcG9uc2U8T3JkZXI+PiB7XG4gICAgICAgICAgICAgICAgdHJ5IHtcbiAgICAgICAgICAgICAgICAgIHJldHVybiBhd2FpdCBBcGlDbGllbnQucG9zdCh0aGlzLkJBU0VfUEFUSCwgZGF0YSk7XG4gICAgICAgICAgICAgICAgfSBjYXRjaCAoZXJyb3IpIHtcbiAgICAgICAgICAgICAgICAgIHRocm93IGhhbmRsZUFwaUVycm9yKGVycm9yKTtcbiAgICAgICAgICAgICAgICB9XG4gICAgICAgICAgICAgIH1cbiAgICAgICAgICAgIH1cbiAgICAgICAgICBgLFxuICAgICAgICAgIGZpbGVuYW1lOiBcIi9wcm9qZWN0L3NyYy90ZWFtcy90ZWFtLW9yZGVyL3NlcnZpY2VzL29yZGVyU2VydmljZS50c1wiLFxuICAgICAgICAgIG9wdGlvbnM6IFtkZWZhdWx0T3B0aW9uc10sXG4gICAgICAgIH0sXG5cbiAgICAgICAgLy8g4pyFIOy7pOyKpO2FgCDtm4Ug7Yyo7YS0XG4gICAgICAgIHtcbiAgICAgICAgICBjb2RlOiBgXG4gICAgICAgICAgICBpbXBvcnQgeyB1c2VTdGF0ZSwgdXNlRWZmZWN0LCB1c2VDYWxsYmFjayB9IGZyb20gJ3JlYWN0JztcbiAgICAgICAgICAgIGltcG9ydCB0eXBlIHsgVXNlUXVlcnlSZXN1bHQgfSBmcm9tICdAdGFuc3RhY2svcmVhY3QtcXVlcnknO1xuICAgICAgICAgICAgaW1wb3J0IHsgdXNlUXVlcnksIHVzZU11dGF0aW9uLCB1c2VRdWVyeUNsaWVudCB9IGZyb20gJ0B0YW5zdGFjay9yZWFjdC1xdWVyeSc7XG4gICAgICAgICAgICBpbXBvcnQgeyB1c2VUb2FzdCB9IGZyb20gJ0AvY29yZS9ob29rcy91c2VUb2FzdCc7XG4gICAgICAgICAgICBpbXBvcnQgeyBPcmRlclNlcnZpY2UgfSBmcm9tICdAL3RlYW1zL3RlYW0tb3JkZXIvc2VydmljZXMvb3JkZXJTZXJ2aWNlJztcbiAgICAgICAgICAgIGltcG9ydCB0eXBlIHsgT3JkZXIsIENyZWF0ZU9yZGVyRGF0YSB9IGZyb20gJ0AvdGVhbXMvdGVhbS1vcmRlci90eXBlcy9vcmRlcic7XG4gICAgICAgICAgICBcbiAgICAgICAgICAgIGludGVyZmFjZSBVc2VPcmRlclJldHVybiB7XG4gICAgICAgICAgICAgIG9yZGVyczogT3JkZXJbXTtcbiAgICAgICAgICAgICAgaXNMb2FkaW5nOiBib29sZWFuO1xuICAgICAgICAgICAgICBlcnJvcjogRXJyb3IgfCBudWxsO1xuICAgICAgICAgICAgICBjcmVhdGVPcmRlcjogKGRhdGE6IENyZWF0ZU9yZGVyRGF0YSkgPT4gUHJvbWlzZTx2b2lkPjtcbiAgICAgICAgICAgICAgcmVmZXRjaDogKCkgPT4gdm9pZDtcbiAgICAgICAgICAgIH1cbiAgICAgICAgICAgIFxuICAgICAgICAgICAgZXhwb3J0IGNvbnN0IHVzZU9yZGVyID0gKCk6IFVzZU9yZGVyUmV0dXJuID0+IHtcbiAgICAgICAgICAgICAgY29uc3QgcXVlcnlDbGllbnQgPSB1c2VRdWVyeUNsaWVudCgpO1xuICAgICAgICAgICAgICBjb25zdCB7IHNob3dUb2FzdCB9ID0gdXNlVG9hc3QoKTtcbiAgICAgICAgICAgICAgXG4gICAgICAgICAgICAgIGNvbnN0IHtcbiAgICAgICAgICAgICAgICBkYXRhOiBvcmRlcnMgPSBbXSxcbiAgICAgICAgICAgICAgICBpc0xvYWRpbmcsXG4gICAgICAgICAgICAgICAgZXJyb3IsXG4gICAgICAgICAgICAgICAgcmVmZXRjaFxuICAgICAgICAgICAgICB9ID0gdXNlUXVlcnkoe1xuICAgICAgICAgICAgICAgIHF1ZXJ5S2V5OiBbJ29yZGVycyddLFxuICAgICAgICAgICAgICAgIHF1ZXJ5Rm46IE9yZGVyU2VydmljZS5nZXRPcmRlcnNcbiAgICAgICAgICAgICAgfSk7XG4gICAgICAgICAgICAgIFxuICAgICAgICAgICAgICBjb25zdCBjcmVhdGVNdXRhdGlvbiA9IHVzZU11dGF0aW9uKHtcbiAgICAgICAgICAgICAgICBtdXRhdGlvbkZuOiBPcmRlclNlcnZpY2UuY3JlYXRlT3JkZXIsXG4gICAgICAgICAgICAgICAgb25TdWNjZXNzOiAoKSA9PiB7XG4gICAgICAgICAgICAgICAgICBxdWVyeUNsaWVudC5pbnZhbGlkYXRlUXVlcmllcyh7IHF1ZXJ5S2V5OiBbJ29yZGVycyddIH0pO1xuICAgICAgICAgICAgICAgICAgc2hvd1RvYXN0KCfso7zrrLjsnbQg7ISx6rO17KCB7Jy866GcIOyDneyEseuQmOyXiOyKteuLiOuLpC4nKTtcbiAgICAgICAgICAgICAgICB9LFxuICAgICAgICAgICAgICAgIG9uRXJyb3I6ICgpID0+IHtcbiAgICAgICAgICAgICAgICAgIHNob3dUb2FzdCgn7KO866y4IOyDneyEseyXkCDsi6TtjKjtlojsirXri4jri6QuJywgJ2Vycm9yJyk7XG4gICAgICAgICAgICAgICAgfVxuICAgICAgICAgICAgICB9KTtcbiAgICAgICAgICAgICAgXG4gICAgICAgICAgICAgIGNvbnN0IGNyZWF0ZU9yZGVyID0gdXNlQ2FsbGJhY2soYXN5bmMgKGRhdGE6IENyZWF0ZU9yZGVyRGF0YSkgPT4ge1xuICAgICAgICAgICAgICAgIGF3YWl0IGNyZWF0ZU11dGF0aW9uLm11dGF0ZUFzeW5jKGRhdGEpO1xuICAgICAgICAgICAgICB9LCBbY3JlYXRlTXV0YXRpb25dKTtcbiAgICAgICAgICAgICAgXG4gICAgICAgICAgICAgIHJldHVybiB7XG4gICAgICAgICAgICAgICAgb3JkZXJzLFxuICAgICAgICAgICAgICAgIGlzTG9hZGluZyxcbiAgICAgICAgICAgICAgICBlcnJvcixcbiAgICAgICAgICAgICAgICBjcmVhdGVPcmRlcixcbiAgICAgICAgICAgICAgICByZWZldGNoXG4gICAgICAgICAgICAgIH07XG4gICAgICAgICAgICB9O1xuICAgICAgICAgIGAsXG4gICAgICAgICAgZmlsZW5hbWU6IFwiL3Byb2plY3Qvc3JjL3RlYW1zL3RlYW0tb3JkZXIvaG9va3MvdXNlT3JkZXIudHNcIixcbiAgICAgICAgICBvcHRpb25zOiBbZGVmYXVsdE9wdGlvbnNdLFxuICAgICAgICB9LFxuICAgICAgXSxcblxuICAgICAgaW52YWxpZDogW1xuICAgICAgICAvLyDinYwg7Iuk7KCcIOyLnOuCmOumrOyYpOyXkOyEnCDtgazroZzsiqQg7YyAIGltcG9ydCDqsJDsp4BcbiAgICAgICAge1xuICAgICAgICAgIGNvZGU6IGBcbiAgICAgICAgICAgIGltcG9ydCBSZWFjdCBmcm9tICdyZWFjdCc7XG4gICAgICAgICAgICBpbXBvcnQgeyBCdXR0b24gfSBmcm9tICdAL2NvcmUvY29tcG9uZW50cy9CdXR0b24nO1xuICAgICAgICAgICAgaW1wb3J0IHsgQXBpQ2xpZW50IH0gZnJvbSAnQC9zaGFyZWQvYXBpL2NsaWVudCc7XG4gICAgICAgICAgICBpbXBvcnQgeyBPcmRlclNlcnZpY2UgfSBmcm9tICdAL3RlYW1zL3RlYW0tb3JkZXIvc2VydmljZXMvb3JkZXJTZXJ2aWNlJztcbiAgICAgICAgICAgIGltcG9ydCB7IFByb2ZpbGVTZXJ2aWNlIH0gZnJvbSAnQC90ZWFtcy90ZWFtLXByb2ZpbGUvc2VydmljZXMvcHJvZmlsZVNlcnZpY2UnOyAvLyDinYwg64uk66W4IO2MgFxuICAgICAgICAgICAgXG4gICAgICAgICAgICBleHBvcnQgY29uc3QgT3JkZXJMaXN0ID0gKCkgPT4ge1xuICAgICAgICAgICAgICAvLyDsu7Ttj6zrhIztirgg66Gc7KeBXG4gICAgICAgICAgICB9O1xuICAgICAgICAgIGAsXG4gICAgICAgICAgZmlsZW5hbWU6IFwiL3Byb2plY3Qvc3JjL3RlYW1zL3RlYW0tb3JkZXIvY29tcG9uZW50cy9PcmRlckxpc3QudHN4XCIsXG4gICAgICAgICAgb3B0aW9uczogW2RlZmF1bHRPcHRpb25zXSxcbiAgICAgICAgICBlcnJvcnM6IFtcbiAgICAgICAgICAgIHtcbiAgICAgICAgICAgICAgbWVzc2FnZUlkOiBcImNyb3NzVGVhbUltcG9ydFwiLFxuICAgICAgICAgICAgICBkYXRhOiB7XG4gICAgICAgICAgICAgICAgY3VycmVudFRlYW06IFwidGVhbS1vcmRlclwiLFxuICAgICAgICAgICAgICAgIHRhcmdldFRlYW06IFwidGVhbS1wcm9maWxlXCIsXG4gICAgICAgICAgICAgIH0sXG4gICAgICAgICAgICB9LFxuICAgICAgICAgIF0sXG4gICAgICAgIH0sXG5cbiAgICAgICAgLy8g4p2MIOyEnOu5hOyKpOyXkOyEnCDri6Trpbgg7YyAIO2DgOyehSBpbXBvcnRcbiAgICAgICAge1xuICAgICAgICAgIGNvZGU6IGBcbiAgICAgICAgICAgIGltcG9ydCB7IEFwaUNsaWVudCB9IGZyb20gJ0Avc2hhcmVkL2FwaS9jbGllbnQnO1xuICAgICAgICAgICAgaW1wb3J0IHR5cGUgeyBPcmRlciB9IGZyb20gJ0AvdGVhbXMvdGVhbS1vcmRlci90eXBlcy9vcmRlcic7XG4gICAgICAgICAgICBpbXBvcnQgdHlwZSB7IFVzZXIgfSBmcm9tICdAL3RlYW1zL3RlYW0tYXV0aC90eXBlcy91c2VyJzsgLy8g4p2MIOuLpOuluCDtjIAg7YOA7J6FXG4gICAgICAgICAgICBcbiAgICAgICAgICAgIGV4cG9ydCBjbGFzcyBPcmRlclNlcnZpY2Uge1xuICAgICAgICAgICAgICBzdGF0aWMgYXN5bmMgYXNzaWduT3JkZXIob3JkZXJJZDogc3RyaW5nLCB1c2VyOiBVc2VyKTogUHJvbWlzZTxPcmRlcj4ge1xuICAgICAgICAgICAgICAgIHJldHVybiBBcGlDbGllbnQucG9zdCgnL29yZGVycy9hc3NpZ24nLCB7IG9yZGVySWQsIHVzZXJJZDogdXNlci5pZCB9KTtcbiAgICAgICAgICAgICAgfVxuICAgICAgICAgICAgfVxuICAgICAgICAgIGAsXG4gICAgICAgICAgZmlsZW5hbWU6IFwiL3Byb2plY3Qvc3JjL3RlYW1zL3RlYW0tb3JkZXIvc2VydmljZXMvb3JkZXJTZXJ2aWNlLnRzXCIsXG4gICAgICAgICAgb3B0aW9uczogW2RlZmF1bHRPcHRpb25zXSxcbiAgICAgICAgICBlcnJvcnM6IFtcbiAgICAgICAgICAgIHtcbiAgICAgICAgICAgICAgbWVzc2FnZUlkOiBcImNyb3NzVGVhbUltcG9ydFwiLFxuICAgICAgICAgICAgICBkYXRhOiB7XG4gICAgICAgICAgICAgICAgY3VycmVudFRlYW06IFwidGVhbS1vcmRlclwiLFxuICAgICAgICAgICAgICAgIHRhcmdldFRlYW06IFwidGVhbS1hdXRoXCIsXG4gICAgICAgICAgICAgIH0sXG4gICAgICAgICAgICB9LFxuICAgICAgICAgIF0sXG4gICAgICAgIH0sXG4gICAgICBdLFxuICAgIH0pO1xuICB9KTtcblxuICAvLyDwn6eqIOyEseuKpSDthYzsiqTtirggKOuMgOufiSBpbXBvcnQpXG4gIGRlc2NyaWJlKFwi7ISx64qlIO2FjOyKpO2KuFwiLCAoKSA9PiB7XG4gICAgY29uc3QgZ2VuZXJhdGVMYXJnZUltcG9ydENvZGUgPSAoXG4gICAgICB0ZWFtTmFtZTogc3RyaW5nLFxuICAgICAgY291bnQ6IG51bWJlclxuICAgICk6IHN0cmluZyA9PiB7XG4gICAgICBjb25zdCBpbXBvcnRzID0gQXJyYXkuZnJvbShcbiAgICAgICAgeyBsZW5ndGg6IGNvdW50IH0sXG4gICAgICAgIChfLCBpKSA9PlxuICAgICAgICAgIGBpbXBvcnQgeyBDb21wb25lbnQke2l9IH0gZnJvbSAnQC90ZWFtcy8ke3RlYW1OYW1lfS9jb21wb25lbnRzL0NvbXBvbmVudCR7aX0nO2BcbiAgICAgICkuam9pbihcIlxcblwiKTtcbiAgICAgIHJldHVybiBpbXBvcnRzO1xuICAgIH07XG5cbiAgICBydWxlVGVzdGVyLnJ1bihcInBlcmZvcm1hbmNlIHRlc3Qgd2l0aCBtYW55IGltcG9ydHNcIiwgcnVsZSwge1xuICAgICAgdmFsaWQ6IFtcbiAgICAgICAgLy8g4pyFIOqwmeydgCDtjIDsl5DshJwg66eO7J2AIGltcG9ydFxuICAgICAgICB7XG4gICAgICAgICAgY29kZTogZ2VuZXJhdGVMYXJnZUltcG9ydENvZGUoXCJ0ZWFtLW9yZGVyXCIsIDUwKSxcbiAgICAgICAgICBmaWxlbmFtZTogXCIvcHJvamVjdC9zcmMvdGVhbXMvdGVhbS1vcmRlci9wYWdlcy9PcmRlclBhZ2UudHN4XCIsXG4gICAgICAgICAgb3B0aW9uczogW2RlZmF1bHRPcHRpb25zXSxcbiAgICAgICAgfSxcbiAgICAgIF0sXG5cbiAgICAgIGludmFsaWQ6IFtcbiAgICAgICAgLy8g4p2MIOuLpOuluCDtjIDsl5DshJwg66eO7J2AIGltcG9ydFxuICAgICAgICB7XG4gICAgICAgICAgY29kZTogZ2VuZXJhdGVMYXJnZUltcG9ydENvZGUoXCJ0ZWFtLXByb2ZpbGVcIiwgMTApLFxuICAgICAgICAgIGZpbGVuYW1lOiBcIi9wcm9qZWN0L3NyYy90ZWFtcy90ZWFtLW9yZGVyL3BhZ2VzL09yZGVyUGFnZS50c3hcIixcbiAgICAgICAgICBvcHRpb25zOiBbZGVmYXVsdE9wdGlvbnNdLFxuICAgICAgICAgIGVycm9yczogQXJyYXkuZnJvbSh7IGxlbmd0aDogMTAgfSwgKCkgPT4gKHtcbiAgICAgICAgICAgIG1lc3NhZ2VJZDogXCJjcm9zc1RlYW1JbXBvcnRcIixcbiAgICAgICAgICB9KSksXG4gICAgICAgIH0sXG4gICAgICBdLFxuICAgIH0pO1xuICB9KTtcbn0pO1xuXG4vLyDwn5OKIO2FjOyKpO2KuCDqsrDqs7wg7JqU7JW9XG5jb25zb2xlLmxvZyhcIvCfp6ogVHlwZVNjcmlwdCBFU0xpbnQg6rec7LmZIO2FjOyKpO2KuCDsmYTro4whXCIpO1xuY29uc29sZS5sb2coXCLwn5OKIO2FjOyKpO2KuCDsu6TrsoTrpqzsp4A6XCIpO1xuY29uc29sZS5sb2coXCIgIOKchSDquLDrs7ggaW1wb3J0IO2MqO2EtCDthYzsiqTtirhcIik7XG5jb25zb2xlLmxvZyhcIiAg4pyFIFR5cGVTY3JpcHQg7YOA7J6FIGltcG9ydCDthYzsiqTtirhcIik7XG5jb25zb2xlLmxvZyhcIiAg4pyFIOy7pOyKpO2FgCDshKTsoJUg7YWM7Iqk7Yq4XCIpO1xuY29uc29sZS5sb2coXCIgIOKchSDsl6Psp4Ag7LyA7J207IqkIO2FjOyKpO2KuFwiKTtcbmNvbnNvbGUubG9nKFwiICDinIUg7Iuk7KCcIOyCrOyaqSDsi5zrgpjrpqzsmKQg7YWM7Iqk7Yq4XCIpO1xuY29uc29sZS5sb2coXCIgIOKchSDshLHriqUg7YWM7Iqk7Yq4XCIpO1xuY29uc29sZS5sb2coXCLwn46JIOuqqOuToCDthYzsiqTtirgg7JmE66OMIVwiKTtcbiJdLCJ2ZXJzaW9uIjozfQ==

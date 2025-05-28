@@ -1,0 +1,50 @@
+{
+  "name": "team-collaboration-project",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "lint:teams": "eslint src/teams/",
+    "lint:team-auth": "eslint src/teams/team-auth/",
+    "lint:team-order": "eslint src/teams/team-order/",
+    "lint:team-dashboard": "eslint src/teams/team-dashboard/",
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "test:coverage": "jest --coverage",
+    "test:eslint-rules": "jest eslint-rules/",
+    "type-check": "tsc --noEmit",
+    "type-check:watch": "tsc --noEmit --watch",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "build:eslint-rules": "tsc --project eslint-rules/tsconfig.json",
+    "dev:eslint-rules": "tsc --project eslint-rules/tsconfig.json --watch"
+  },
+  "dependencies": {
+    "react": "^18.0.0",
+    "react-dom": "^18.0.0"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.27.0",
+    "@types/eslint": "^8.0.0",
+    "@types/estree": "^1.0.0",
+    "@types/jest": "^29.0.0",
+    "@types/node": "^20.0.0",
+    "@types/react": "^18.0.0",
+    "@types/react-dom": "^18.0.0",
+    "@typescript-eslint/eslint-plugin": "^6.0.0",
+    "@typescript-eslint/parser": "^6.0.0",
+    "eslint": "^8.0.0",
+    "eslint-plugin-react": "^7.33.0",
+    "eslint-plugin-react-hooks": "^4.6.2",
+    "jest": "^29.0.0",
+    "prettier": "^3.0.0",
+    "ts-jest": "^29.0.0",
+    "ts-node": "^10.0.0",
+    "typescript": "^5.0.0"
+  }
+}

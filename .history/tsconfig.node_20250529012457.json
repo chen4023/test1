@@ -1,0 +1,10 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "composite": true,
+    "module": "commonjs",
+    "lib": ["esnext"],
+    "types": ["node"]
+  },
+  "include": ["vite.config.ts", "scripts/**/*.ts"]
+}

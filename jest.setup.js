@@ -1,0 +1,73 @@
+// 📁 jest.setup.js
+// Jest 전역 설정 파일
+
+// 콘솔 출력 개선 (ESLint 테스트 시 예상된 에러 무시)
+const originalConsoleError = console.error;
+console.error = (...args) => {
+  // ESLint 관련 예상된 에러는 무시
+  if (args[0] && typeof args[0] === "string") {
+    const errorMessage = args[0];
+    if (
+      errorMessage.includes("Cross-team import detected") ||
+      errorMessage.includes("Restricted import detected") ||
+      errorMessage.includes("team-architecture/restrict-team-imports")
+    ) {
+      return; // 예상된 ESLint 에러는 출력하지 않음
+    }
+  }
+  originalConsoleError.apply(console, args);
+};
+
+// 콘솔 경고도 필터링
+const originalConsoleWarn = console.warn;
+console.warn = (...args) => {
+  if (args[0] && typeof args[0] === "string") {
+    const warnMessage = args[0];
+    if (warnMessage.includes("ESLint")) {
+      return; // ESLint 관련 경고 무시
+    }
+  }
+  originalConsoleWarn.apply(console, args);
+};
+
+// 테스트 환경 변수 설정
+process.env.NODE_ENV = "test";
+process.env.TZ = "UTC";
+
+// 전역 테스트 설정
+global.testTimeout = 5000;
+
+// Jest 매처 확장 (필요한 경우)
+expect.extend({
+  toBeValidESLintRule(rule) {
+    const pass = rule && typeof rule === "object" && rule.meta && rule.create;
+    if (pass) {
+      return {
+        message: () => `Expected not to be a valid ESLint rule`,
+        pass: true,
+      };
+    } else {
+      return {
+        message: () =>
+          `Expected to be a valid ESLint rule with meta and create properties`,
+        pass: false,
+      };
+    }
+  },
+});
+
+// 테스트 시작 시 실행
+beforeAll(() => {
+  console.log("🧪 Jest 테스트 환경 설정 완료");
+  console.log("📊 ESLint 커스텀 규칙 테스트 시작");
+});
+
+// 각 테스트 후 정리
+afterEach(() => {
+  // 필요시 정리 작업
+});
+
+// 모든 테스트 완료 후 실행
+afterAll(() => {
+  console.log("✅ 모든 테스트 완료");
+});
